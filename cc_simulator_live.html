@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Covered Call ETF Portfolio Simulator — Live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%); border-bottom: 1px solid #2c5282; padding: 20px 30px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .header-icon { font-size: 32px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #ffffff; }
+  .header p { font-size: 13px; color: #bee3f8; margin-top: 2px; }
+  .badges { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; }
+  .badge-live  { background:#c6f6d5; border:1px solid #9ae6b4; color:#276749; }
+  .badge-cache { background:#e2e8f0; border:1px solid #cbd5e0; color:#4a5568; }
+  .badge-err   { background:#fed7d7; border:1px solid #feb2b2; color:#c53030; }
+  .live-dot { width:7px; height:7px; background:#38a169; border-radius:50%; animation:pulse 2s infinite; }
+  .cache-dot{ width:7px; height:7px; background:#718096; border-radius:50%; }
+  .err-dot  { width:7px; height:7px; background:#e53e3e; border-radius:50%; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Layout */
+  .main { display: grid; grid-template-columns: 390px 1fr; min-height: calc(100vh - 73px); }
+  .left-panel  { background:#ffffff; border-right:1px solid #e2e8f0; padding:20px; overflow-y:auto; }
+  .right-panel { padding:24px; overflow-y:auto; }
+
+  /* Server notice */
+  .server-notice { background:#ebf8ff; border:1px solid #90cdf4; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:12px; line-height:1.6; }
+  .server-notice strong { color:#2b6cb0; }
+  .server-notice code { background:#e2e8f0; padding:2px 6px; border-radius:4px; font-size:11px; color:#276749; font-family:monospace; }
+
+  .section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#718096; margin-bottom:12px; }
+
+  /* Portfolio size */
+  .portfolio-card { background:#f7fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:20px; }
+  .portfolio-card label { display:block; font-size:12px; color:#718096; margin-bottom:8px; }
+  .portfolio-input { width:100%; background:#ffffff; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px; color:#1a202c; font-size:18px; font-weight:700; text-align:center; outline:none; }
+  .portfolio-input:focus { border-color:#4299e1; box-shadow:0 0 0 3px rgba(66,153,225,.2); }
+  .quick-amounts { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .quick-btn { flex:1; min-width:56px; background:#edf2f7; border:1px solid #cbd5e0; border-radius:6px; padding:5px 8px; color:#4a5568; font-size:11px; cursor:pointer; text-align:center; transition:all .15s; }
+  .quick-btn:hover { background:#4299e1; color:#ffffff; border-color:#4299e1; }
+
+  /* Search */
+  .search-wrapper { position:relative; margin-bottom:12px; }
+  .search-input { width:100%; background:#ffffff; border:1px solid #cbd5e0; border-radius:8px; padding:10px 14px 10px 36px; color:#1a202c; font-size:14px; outline:none; transition:border .2s; }
+  .search-input:focus { border-color:#4299e1; box-shadow:0 0 0 3px rgba(66,153,225,.15); }
+  .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#a0aec0; font-size:15px; pointer-events:none; }
+  .search-spinner { position:absolute; right:12px; top:50%; transform:translateY(-50%); display:none; }
+  .search-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#ffffff; border:1px solid #4299e1; border-radius:8px; z-index:200; max-height:300px; overflow-y:auto; display:none; box-shadow:0 10px 40px rgba(0,0,0,.12); }
+  .sri { padding:10px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #edf2f7; transition:background .1s; }
+  .sri:hover { background:#ebf8ff; }
+  .sri:last-child { border-bottom:none; }
+  .sri-ticker { font-weight:700; font-size:14px; color:#2b6cb0; }
+  .sri-name   { font-size:11px; color:#718096; margin-top:1px; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sri-meta   { font-size:10px; color:#a0aec0; margin-top:1px; }
+  .sri-yield  { font-size:12px; color:#276749; font-weight:600; white-space:nowrap; }
+  .sri-live-tag { font-size:9px; color:#276749; border:1px solid #9ae6b4; border-radius:3px; padding:1px 4px; margin-left:4px; vertical-align:middle; background:#f0fff4; }
+  .sri-cache-tag{ font-size:9px; color:#718096; border:1px solid #cbd5e0; border-radius:3px; padding:1px 4px; margin-left:4px; vertical-align:middle; background:#f7fafc; }
+
+  /* Holdings */
+  .holdings-list { display:flex; flex-direction:column; gap:8px; }
+  .holding-card { background:#f7fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; transition:border-color .2s; }
+  .holding-card:hover { border-color:#90cdf4; }
+  .holding-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .holding-ticker { font-weight:700; font-size:15px; color:#2b6cb0; }
+  .holding-name   { font-size:11px; color:#718096; margin-top:1px; }
+  .holding-source { font-size:9px; padding:1px 5px; border-radius:3px; margin-left:5px; vertical-align:middle; }
+  .src-live  { background:#f0fff4; color:#276749; border:1px solid #9ae6b4; }
+  .src-cache { background:#f7fafc; color:#718096; border:1px solid #cbd5e0; }
+  .holding-remove { background:none; border:none; color:#cbd5e0; cursor:pointer; font-size:16px; padding:0; line-height:1; transition:color .15s; }
+  .holding-remove:hover { color:#e53e3e; }
+  .alloc-row { display:flex; align-items:center; gap:8px; }
+  .alloc-slider { flex:1; -webkit-appearance:none; height:4px; background:#e2e8f0; border-radius:2px; outline:none; cursor:pointer; }
+  .alloc-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#4299e1; cursor:pointer; border:2px solid #2b6cb0; }
+  .alloc-input { width:60px; background:#ffffff; border:1px solid #cbd5e0; border-radius:6px; padding:4px 8px; color:#1a202c; font-size:13px; font-weight:600; text-align:center; outline:none; }
+  .alloc-input:focus { border-color:#4299e1; }
+  .holding-price { font-size:12px; color:#718096; margin-top:6px; }
+
+  /* Alloc bar */
+  .alloc-summary { background:#f7fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-top:12px; }
+  .alloc-bar-track { background:#e2e8f0; border-radius:4px; height:8px; overflow:hidden; margin:8px 0; }
+  .alloc-bar-fill  { height:100%; border-radius:4px; transition:width .3s; }
+  .alloc-total { display:flex; justify-content:space-between; font-size:12px; }
+
+  .calc-btn { width:100%; background:linear-gradient(135deg,#3182ce,#2b6cb0); border:none; border-radius:10px; padding:13px; color:white; font-size:14px; font-weight:700; cursor:pointer; margin-top:16px; transition:all .2s; letter-spacing:.5px; }
+  .calc-btn:hover { background:linear-gradient(135deg,#4299e1,#3182ce); transform:translateY(-1px); box-shadow:0 4px 15px rgba(66,153,225,.4); }
+  .calc-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+  /* Right panel */
+  .empty-state { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:#a0aec0; text-align:center; gap:16px; }
+  .empty-icon { font-size:64px; opacity:.5; }
+
+  /* Summary cards */
+  .summary-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .sc { background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .sc-label { font-size:11px; color:#718096; text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+  .sc-value { font-size:24px; font-weight:700; color:#1a202c; }
+  .sc-sub   { font-size:12px; color:#718096; margin-top:4px; }
+  .pos { color:#276749 !important; }
+  .neg { color:#c53030 !important; }
+
+  /* Tables */
+  .results-section { background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:24px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .rs-header { padding:14px 20px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; background:#f7fafc; }
+  .rs-header h3 { font-size:14px; font-weight:600; color:#1a202c; }
+  .rs-header span { font-size:12px; color:#a0aec0; }
+  table { width:100%; border-collapse:collapse; }
+  th { padding:10px 16px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#718096; background:#f7fafc; text-align:right; }
+  th:first-child { text-align:left; }
+  td { padding:11px 16px; font-size:13px; color:#2d3748; border-top:1px solid #edf2f7; text-align:right; }
+  td:first-child { text-align:left; }
+  tr:hover td { background:#f7fafc; }
+  .tkbadge { background:#ebf8ff; color:#2b6cb0; padding:3px 8px; border-radius:5px; font-weight:700; font-size:12px; display:inline-block; border:1px solid #bee3f8; }
+  .fname   { display:block; font-size:11px; color:#a0aec0; margin-top:2px; }
+  .wbadge  { background:#edf2f7; color:#718096; padding:2px 7px; border-radius:10px; font-size:11px; }
+  .nav-pill { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .nav-bad { background:#fff5f5; color:#c53030; border:1px solid #fed7d7; }
+  .nav-ok  { background:#f0fff4; color:#276749; border:1px solid #c6f6d5; }
+  .total-row td { font-weight:700; background:#f7fafc; }
+
+  /* Charts */
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px; }
+  .chart-card { background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .chart-card h3 { font-size:13px; font-weight:600; color:#4a5568; margin-bottom:16px; }
+  .chart-box { position:relative; height:220px; }
+  .chart-box-tall { position:relative; height:320px; }
+
+  /* Projection */
+  .proj-section { background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:24px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .proj-header { padding:16px 20px; border-bottom:1px solid #e2e8f0; background:linear-gradient(135deg,#ebf8ff,#f7fafc); }
+  .proj-header h3 { font-size:15px; font-weight:700; color:#1a202c; margin-bottom:4px; }
+  .proj-header p  { font-size:12px; color:#718096; }
+  .drip-control { display:flex; align-items:center; gap:12px; margin-top:12px; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; }
+  .drip-label { font-size:12px; font-weight:700; color:#2b6cb0; white-space:nowrap; min-width:60px; }
+  .drip-slider { flex:1; -webkit-appearance:none; height:5px; border-radius:3px; outline:none; cursor:pointer; background: linear-gradient(to right, #4299e1 0%, #4299e1 var(--drip-pct,100%), #e2e8f0 var(--drip-pct,100%), #e2e8f0 100%); }
+  .drip-slider::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#2b6cb0; cursor:pointer; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+  .drip-pct-display { font-size:14px; font-weight:700; color:#2b6cb0; min-width:42px; text-align:right; }
+  .drip-desc { font-size:11px; color:#718096; white-space:nowrap; min-width:140px; }
+  .proj-scenarios { display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
+  .proj-scenario { padding:20px; border-right:1px solid #e2e8f0; }
+  .proj-scenario:last-child { border-right:none; }
+  .proj-scenario-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  /* Per-scenario rate controls */
+  .scenario-rate-ctrl { background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; margin-bottom:12px; }
+  .scenario-rate-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .scenario-rate-row:last-of-type { margin-bottom:0; }
+  .scenario-rate-label { font-size:10px; font-weight:700; white-space:nowrap; min-width:78px; }
+  .price-label { color:#4a5568; }
+  .div-label { color:#276749; }
+  .scenario-rate-slider { flex:1; -webkit-appearance:none; height:4px; border-radius:2px; background:#e2e8f0; outline:none; cursor:pointer; }
+  .scenario-rate-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#4299e1; cursor:pointer; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .div-slider::-webkit-slider-thumb { background:#48bb78; }
+  .scenario-rate-val { font-size:11px; font-weight:700; color:#2d3748; min-width:36px; text-align:right; }
+  .scenario-rate-val.overridden { color:#d69e2e; }
+  .scenario-rate-reset { border:none; background:none; cursor:pointer; font-size:13px; color:#a0aec0; padding:0 2px; line-height:1; }
+  .scenario-rate-reset:hover { color:#e53e3e; }
+  .scenario-rate-default { font-size:10px; color:#a0aec0; margin-top:5px; text-align:center; }
+  .proj-scenario.bear .proj-scenario-label { color:#c53030; }
+  .proj-scenario.base .proj-scenario-label { color:#2b6cb0; border-bottom:2px solid #e2e8f0; padding-bottom:12px; margin-bottom:12px; background:rgba(66,153,225,.06); border-radius:6px; padding:8px; }
+  .proj-scenario.bull .proj-scenario-label { color:#276749; }
+  .proj-milestone { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid #f0f4f8; }
+  .proj-milestone:last-child { border-bottom:none; }
+  .proj-year { font-size:12px; color:#718096; font-weight:600; }
+  .proj-value { font-size:15px; font-weight:700; }
+  .proj-gain  { font-size:11px; margin-top:1px; }
+  .proj-scenario.bear .proj-value { color:#2d3748; }
+  .proj-scenario.base .proj-value { color:#2b6cb0; }
+  .proj-scenario.bull .proj-value { color:#276749; }
+  .proj-income-row { background:#f7fafc; border-top:1px solid #e2e8f0; padding:16px 20px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .proj-income-cell { text-align:center; }
+  .proj-income-label { font-size:10px; color:#718096; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .proj-income-value { font-size:14px; font-weight:700; color:#276749; }
+  .proj-income-sub   { font-size:10px; color:#a0aec0; margin-top:2px; }
+  .proj-assumptions { padding:12px 20px; background:#f7fafc; border-top:1px solid #e2e8f0; font-size:11px; color:#a0aec0; line-height:1.7; }
+  .proj-assumptions strong { color:#718096; }
+  .proj-etf-table { width:100%; border-collapse:collapse; }
+  .proj-etf-table th { padding:9px 16px; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:#718096; background:#f7fafc; text-align:right; }
+  .proj-etf-table th:first-child { text-align:left; }
+  .proj-etf-table td { padding:10px 16px; font-size:12px; color:#2d3748; border-top:1px solid #edf2f7; text-align:right; }
+  .proj-etf-table td:first-child { text-align:left; }
+  .proj-etf-table tr:hover td { background:#f7fafc; }
+  .data-src-tag { font-size:9px; border-radius:3px; padding:1px 5px; margin-left:4px; vertical-align:middle; }
+  .src-10y  { background:#f0fff4; color:#276749; border:1px solid #9ae6b4; }
+  .src-full { background:#ebf8ff; color:#2b6cb0; border:1px solid #90cdf4; }
+  .src-bm   { background:#fffaf0; color:#c05621; border:1px solid #fbd38d; }
+
+  /* Spinners */
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid #e2e8f0; border-top-color:#4299e1; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .no-holdings { text-align:center; color:#a0aec0; font-size:13px; padding:20px; }
+  .data-footer { text-align:center; padding:16px; font-size:11px; color:#a0aec0; }
+
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:#f0f4f8; }
+  ::-webkit-scrollbar-thumb { background:#cbd5e0; border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📊</div>
+  <div>
+    <h1>Covered Call ETF Portfolio Simulator</h1>
+    <p>Live Yahoo Finance data · Real-time search · NAV erosion · Total return</p>
+  </div>
+  <div class="badges">
+    <div class="badge" id="serverBadge" style="display:none;"></div>
+    <div class="badge badge-live"><div class="live-dot"></div>YAHOO FINANCE</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <div class="server-notice" id="serverNotice">
+      <strong>⚡ Live Data Mode</strong><br>
+      For real-time quotes, run the local server first:<br>
+      <code>python3 cc_simulator_server.py</code><br>
+      <span style="color:#718096;">Without it, the simulator uses built-in data (March 2026). Either way, any ticker works.</span>
+    </div>
+
+    <!-- Portfolio Size -->
+    <div class="section-title">Portfolio Size</div>
+    <div class="portfolio-card">
+      <label>Total Investment Amount (USD)</label>
+      <input type="text" class="portfolio-input" id="portfolioSize" value="$100,000" />
+      <div class="quick-amounts">
+        <div class="quick-btn" onclick="setPortfolio(10000)">$10K</div>
+        <div class="quick-btn" onclick="setPortfolio(25000)">$25K</div>
+        <div class="quick-btn" onclick="setPortfolio(50000)">$50K</div>
+        <div class="quick-btn" onclick="setPortfolio(100000)">$100K</div>
+        <div class="quick-btn" onclick="setPortfolio(250000)">$250K</div>
+        <div class="quick-btn" onclick="setPortfolio(500000)">$500K</div>
+        <div class="quick-btn" onclick="setPortfolio(1000000)">$1M</div>
+      </div>
+    </div>
+
+    <!-- ETF Search -->
+    <div class="section-title">Add ETFs to Portfolio</div>
+    <div class="search-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="etfSearch"
+        placeholder="Search any ticker or name — TSPY, GPIX, QYLD…" autocomplete="off" />
+      <span class="search-spinner" id="searchSpinner"><span class="spin"></span></span>
+      <div class="search-dropdown" id="searchDropdown"></div>
+    </div>
+
+    <!-- Holdings -->
+    <div class="section-title">
+      Holdings <span id="holdingCount" style="color:#4a5568;font-weight:400;text-transform:none;font-size:12px;letter-spacing:0;">(0 ETFs)</span>
+    </div>
+    <div class="holdings-list" id="holdingsList">
+      <div class="no-holdings">Search and add ETFs above</div>
+    </div>
+
+    <div class="alloc-summary" id="allocSummary" style="display:none;">
+      <div class="alloc-total">
+        <span style="color:#a0aec0;font-size:12px;">Total Allocation</span>
+        <span id="totalAllocText" style="font-size:12px;font-weight:700;"></span>
+      </div>
+      <div class="alloc-bar-track">
+        <div class="alloc-bar-fill" id="allocBarFill" style="width:0%;background:#4299e1;"></div>
+      </div>
+      <div style="font-size:11px;color:#718096;" id="allocHint"></div>
+    </div>
+
+    <button class="calc-btn" onclick="calculatePortfolio()" id="calcBtn">
+      ⚡ Calculate Portfolio Performance
+    </button>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel" id="rightPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📈</div>
+      <h2 style="color:#718096;">Build Your Portfolio</h2>
+      <p style="font-size:14px;max-width:320px;line-height:1.6;">Search any covered call ETF, set allocations, then click Calculate for full analytics — YTD, 3M, 6M, 1Y returns, dividend income, NAV erosion, and total return.</p>
+      <div style="margin-top:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;font-size:12px;text-align:left;max-width:340px;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+        <div style="color:#4a5568;margin-bottom:8px;font-weight:600;">Starter ideas:</div>
+        <div style="color:#718096;margin-bottom:4px;">• Conservative: JEPI 50% + GPIX 30% + DIVO 20%</div>
+        <div style="color:#718096;margin-bottom:4px;">• Balanced: JEPQ 40% + SPYI 30% + TSPY 30%</div>
+        <div style="color:#718096;margin-bottom:4px;">• High Yield: QYLD 30% + XYLD 30% + RYLD 40%</div>
+        <div style="color:#718096;">• Aggressive: TSLY 30% + NVDY 30% + CONY 40%</div>
+      </div>
+    </div>
+    <div id="resultsPanel" style="display:none;"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// Set CLOUD_SERVER_URL to your Railway URL to use live data from any device.
+// Example: 'https://cc-simulator-production.up.railway.app'
+// Leave as '' to auto-detect (localhost when running locally).
+// ============================================================
+const CLOUD_SERVER_URL = 'https://web-production-05ef69.up.railway.app';
+
+const API = CLOUD_SERVER_URL
+  ? CLOUD_SERVER_URL.replace(/\/$/, '')
+  : 'http://127.0.0.1:7432';
+let serverOnline = false;
+
+// ============================================================
+// BUILT-IN CACHE  (fallback when server is offline)
+// All values from Yahoo Finance, March 2 2026
+// ============================================================
+const BUILTIN = {
+  "JEPI":  { name:"JPMorgan Equity Premium Income ETF",            price:59.48, nav:59.88, yield_annual:0.0806, divFreq:"monthly",   total_div_1y:4.739,  one_y_start:54.30, six_m_start:54.79, three_m_start:56.41, ytd_start:56.98, recent_divs:[["2025-03-03",0.328],["2025-04-01",0.408],["2025-05-01",0.488],["2025-06-02",0.54],["2025-07-01",0.4],["2025-08-01",0.358],["2025-09-02",0.368],["2025-10-01",0.361],["2025-11-03",0.346],["2025-12-01",0.371],["2025-12-31",0.427],["2026-02-02",0.344]], category:"Equity Index" },
+  "JEPQ":  { name:"JPMorgan Nasdaq Equity Premium Income ETF",     price:57.69, nav:58.03, yield_annual:0.1031, divFreq:"monthly",   total_div_1y:6.139,  one_y_start:49.09, six_m_start:52.93, three_m_start:57.46, ytd_start:57.63, recent_divs:[["2025-03-03",0.482],["2025-04-01",0.541],["2025-05-01",0.598],["2025-06-02",0.621],["2025-07-01",0.494],["2025-08-01",0.444],["2025-09-02",0.442],["2025-10-01",0.446],["2025-11-03",0.476],["2025-12-01",0.553],["2025-12-31",0.576],["2026-02-02",0.466]], category:"Equity Index" },
+  "QYLD":  { name:"Global X NASDAQ 100 Covered Call ETF",          price:17.64, nav:17.59, yield_annual:0.1143, divFreq:"monthly",   total_div_1y:2.044,  one_y_start:15.58, six_m_start:15.69, three_m_start:16.98, ytd_start:17.33, recent_divs:[["2025-03-24",0.17],["2025-04-21",0.16],["2025-05-19",0.165],["2025-06-23",0.166],["2025-07-21",0.165],["2025-08-18",0.168],["2025-09-22",0.17],["2025-10-20",0.173],["2025-11-24",0.173],["2025-12-22",0.178],["2026-01-20",0.179],["2026-02-23",0.177]], category:"Equity Index" },
+  "XYLD":  { name:"Global X S&P 500 Covered Call ETF",             price:40.78, nav:40.72, yield_annual:0.1046, divFreq:"monthly",   total_div_1y:4.308,  one_y_start:36.93, six_m_start:36.92, three_m_start:39.34, ytd_start:40.03, recent_divs:[["2025-03-24",0.401],["2025-04-21",0.377],["2025-05-19",0.389],["2025-06-23",0.387],["2025-07-21",0.313],["2025-08-18",0.316],["2025-09-22",0.302],["2025-10-20",0.397],["2025-11-24",0.4],["2025-12-22",0.325],["2026-01-20",0.36],["2026-02-23",0.341]], category:"Equity Index" },
+  "RYLD":  { name:"Global X Russell 2000 Covered Call ETF",        price:15.74, nav:15.64, yield_annual:0.1181, divFreq:"monthly",   total_div_1y:1.822,  one_y_start:13.91, six_m_start:14.23, three_m_start:14.85, ytd_start:15.13, recent_divs:[["2025-03-24",0.154],["2025-04-21",0.143],["2025-05-19",0.148],["2025-06-23",0.149],["2025-07-21",0.15],["2025-08-18",0.151],["2025-09-22",0.152],["2025-10-20",0.153],["2025-11-24",0.152],["2025-12-22",0.155],["2026-01-20",0.157],["2026-02-23",0.158]], category:"Equity Index" },
+  "DIVO":  { name:"Amplify CWP Enhanced Dividend Income ETF",      price:46.82, nav:46.63, yield_annual:0.0497, divFreq:"monthly",   total_div_1y:2.898,  one_y_start:38.91, six_m_start:41.77, three_m_start:43.85, ytd_start:44.34, recent_divs:[["2025-03-28",0.165],["2025-04-29",0.158],["2025-05-29",0.165],["2025-06-27",0.168],["2025-07-30",0.172],["2025-08-28",0.175],["2025-09-29",0.177],["2025-10-30",0.182],["2025-11-26",0.214],["2025-12-30",0.953],["2026-01-29",0.183],["2026-02-26",0.186]], category:"Equity Index" },
+  "GPIQ":  { name:"Goldman Sachs Nasdaq-100 Premium Income ETF",   price:51.66, nav:51.95, yield_annual:0.0981, divFreq:"monthly",   total_div_1y:5.25,   one_y_start:42.60, six_m_start:48.09, three_m_start:52.14, ytd_start:51.85, recent_divs:[["2025-03-03",0.415],["2025-04-01",0.386],["2025-05-01",0.388],["2025-06-02",0.415],["2025-07-01",0.435],["2025-08-01",0.442],["2025-09-02",0.443],["2025-10-01",0.458],["2025-11-03",0.474],["2025-12-01",0.465],["2026-01-02",0.463],["2026-02-02",0.466]], category:"Equity Index" },
+  "GPIX":  { name:"Goldman Sachs S&P 500 Premium Income ETF",      price:52.47, nav:52.70, yield_annual:0.0800, divFreq:"monthly",   total_div_1y:4.275,  one_y_start:44.76, six_m_start:48.95, three_m_start:51.70, ytd_start:52.16, recent_divs:[["2025-03-03",0.344],["2025-04-01",0.327],["2025-05-01",0.323],["2025-06-02",0.339],["2025-07-01",0.352],["2025-08-01",0.358],["2025-09-02",0.362],["2025-10-01",0.369],["2025-11-03",0.376],["2025-12-01",0.374],["2026-01-02",0.375],["2026-02-02",0.376]], category:"Equity Index" },
+  "TSPY":  { name:"TappAlpha SPY Growth & Daily Income ETF",       price:25.18, nav:25.08, yield_annual:0.1367, divFreq:"monthly",   total_div_1y:3.503,  one_y_start:21.29, six_m_start:23.21, three_m_start:24.77, ytd_start:24.98, recent_divs:[["2025-03-05",0.291],["2025-04-02",0.271],["2025-05-07",0.283],["2025-06-03",0.282],["2025-07-01",0.286],["2025-08-05",0.292],["2025-09-02",0.292],["2025-10-07",0.3],["2025-11-04",0.303],["2025-12-02",0.301],["2026-01-06",0.302],["2026-02-03",0.3]], category:"Equity Index" },
+  "SPYI":  { name:"Neos S&P 500 High Income ETF",                  price:52.20, nav:52.09, yield_annual:0.1180, divFreq:"monthly",   total_div_1y:6.169,  one_y_start:44.28, six_m_start:48.39, three_m_start:51.01, ytd_start:51.54, recent_divs:[["2025-03-26",0.506],["2025-04-23",0.462],["2025-05-21",0.506],["2025-06-25",0.505],["2025-07-23",0.511],["2025-08-20",0.518],["2025-09-24",0.527],["2025-10-22",0.527],["2025-11-26",0.522],["2025-12-24",0.532],["2026-01-21",0.531],["2026-02-18",0.522]], category:"Equity Index" },
+  "QQQI":  { name:"NEOS NASDAQ-100 High Income ETF",               price:52.57, nav:52.43, yield_annual:0.1385, divFreq:"monthly",   total_div_1y:7.456,  one_y_start:43.70, six_m_start:49.14, three_m_start:52.71, ytd_start:52.50, recent_divs:[["2025-03-26",0.587],["2025-04-23",0.531],["2025-05-21",0.637],["2025-06-25",0.628],["2025-07-23",0.637],["2025-08-20",0.629],["2025-09-24",0.641],["2025-10-22",0.645],["2025-11-26",0.63],["2025-12-24",0.641],["2026-01-21",0.636],["2026-02-18",0.614]], category:"Equity Index" },
+  "IWMI":  { name:"NEOS Russell 2000 High Income ETF",             price:50.38, nav:49.98, yield_annual:0.1368, divFreq:"monthly",   total_div_1y:6.86,   one_y_start:39.58, six_m_start:44.20, three_m_start:46.92, ytd_start:47.90, recent_divs:[["2025-03-26",0.569],["2025-04-23",0.498],["2025-05-21",0.553],["2025-06-25",0.557],["2025-07-23",0.562],["2025-08-20",0.562],["2025-09-24",0.587],["2025-10-22",0.59],["2025-11-26",0.573],["2025-12-24",0.599],["2026-01-21",0.608],["2026-02-18",0.602]], category:"Equity Index" },
+  "DJIA":  { name:"Global X Dow 30 Covered Call ETF",              price:22.39, nav:22.31, yield_annual:0.0847, divFreq:"monthly",   total_div_1y:2.373,  one_y_start:20.40, six_m_start:20.37, three_m_start:21.58, ytd_start:21.82, recent_divs:[["2025-04-21",0.209],["2025-05-19",0.107],["2025-06-23",0.156],["2025-07-21",0.134],["2025-08-18",0.159],["2025-09-22",0.129],["2025-10-20",0.22],["2025-11-24",0.223],["2025-12-22",0.117],["2025-12-30",0.471],["2026-01-20",0.169],["2026-02-23",0.109]], category:"Equity Index" },
+  "BALI":  { name:"iShares U.S. Large Cap Premium Income Active ETF", price:32.15, nav:32.21, yield_annual:0.0833, divFreq:"monthly", total_div_1y:2.704, one_y_start:27.48, six_m_start:29.91, three_m_start:31.28, ytd_start:31.50, recent_divs:[["2025-03-03",0.206],["2025-04-01",0.255],["2025-05-01",0.382],["2025-06-02",0.234],["2025-07-01",0.203],["2025-08-01",0.203],["2025-09-02",0.186],["2025-10-01",0.189],["2025-11-03",0.195],["2025-12-01",0.25],["2025-12-30",0.222],["2026-02-02",0.179]], category:"Equity Index" },
+  "KLIP":  { name:"KraneShares KWEB Covered Call Strategy ETF",    price:27.42, nav:27.77, yield_annual:0.2510, divFreq:"monthly",   total_div_1y:7.708,  one_y_start:25.35, six_m_start:28.86, three_m_start:29.28, ytd_start:29.69, recent_divs:[["2025-03-28",0.683],["2025-04-29",0.622],["2025-05-29",0.636],["2025-06-27",0.644],["2025-07-30",0.653],["2025-08-28",0.66],["2025-09-29",0.669],["2025-10-30",0.668],["2025-11-26",0.635],["2025-12-30",0.619],["2026-01-29",0.635],["2026-02-26",0.584]], category:"Sector" },
+  "GLDW":  { name:"Roundhill Gold WeeklyPay ETF",                  price:64.27, nav:63.79, yield_annual:0.0750, divFreq:"weekly",    total_div_1y:4.809,  one_y_start:47.11, six_m_start:47.11, three_m_start:49.52, ytd_start:50.95, recent_divs:[["2026-01-05",0.346],["2026-01-12",0.103],["2026-01-20",0.316],["2026-01-26",0.561],["2026-02-02",0.407],["2026-02-09",0.279],["2026-02-17",0.395],["2026-02-23",0.41]], category:"Commodity" },
+  "TSLY":  { name:"YieldMax TSLA Option Income Strategy ETF",      price:32.40, nav:32.38, yield_annual:0.9160, divFreq:"weekly",    total_div_1y:30.7,   one_y_start:22.28, six_m_start:26.61, three_m_start:33.45, ytd_start:33.76, recent_divs:[["2026-01-02",0.366],["2026-01-08",0.318],["2026-01-15",0.35],["2026-01-22",0.287],["2026-01-29",0.324],["2026-02-05",0.33],["2026-02-12",0.331],["2026-02-19",0.321],["2026-02-26",0.315]], category:"Single Stock" },
+  "NVDY":  { name:"YieldMax NVDA Option Income Strategy ETF",      price:13.69, nav:13.31, yield_annual:0.7498, divFreq:"weekly",    total_div_1y:9.748,  one_y_start:9.01,  six_m_start:12.55, three_m_start:13.22, ytd_start:13.82, recent_divs:[["2026-01-02",0.144],["2026-01-08",0.105],["2026-01-15",0.095],["2026-01-22",0.085],["2026-01-29",0.108],["2026-02-05",0.094],["2026-02-12",0.106],["2026-02-19",0.094],["2026-02-26",0.115]], category:"Single Stock" },
+  "CONY":  { name:"YieldMax COIN Option Income Strategy ETF",      price:29.09, nav:28.15, yield_annual:2.1200, divFreq:"weekly",    total_div_1y:59.703, one_y_start:41.40, six_m_start:48.04, three_m_start:40.32, ytd_start:37.45, recent_divs:[["2026-01-02",0.434],["2026-01-08",0.409],["2026-01-15",0.397],["2026-01-22",0.222],["2026-01-29",0.309],["2026-02-05",0.284],["2026-02-12",0.256],["2026-02-19",0.299],["2026-02-26",0.318]], category:"Single Stock" },
+  "MSFO":  { name:"YieldMax MSFT Option Income Strategy ETF",      price:12.68, nav:12.51, yield_annual:0.3780, divFreq:"weekly",    total_div_1y:5.086,  one_y_start:12.03, six_m_start:15.15, three_m_start:14.90, ytd_start:14.52, recent_divs:[["2026-01-02",0.062],["2026-01-08",0.053],["2026-01-15",0.059],["2026-01-22",0.058],["2026-01-29",0.064],["2026-02-05",0.057],["2026-02-12",0.069],["2026-02-19",0.074],["2026-02-26",0.077]], category:"Single Stock" },
+  "AMZY":  { name:"YieldMax AMZN Option Income Strategy ETF",      price:11.31, nav:11.34, yield_annual:0.5270, divFreq:"weekly",    total_div_1y:6.726,  one_y_start:10.92, six_m_start:12.28, three_m_start:12.59, ytd_start:12.36, recent_divs:[["2026-01-02",0.065],["2026-01-08",0.066],["2026-01-15",0.096],["2026-01-22",0.061],["2026-01-29",0.065],["2026-02-05",0.075],["2026-02-12",0.078],["2026-02-19",0.088],["2026-02-26",0.093]], category:"Single Stock" },
+  "YMAX":  { name:"YieldMax Universe Fund of Option Income ETFs",  price:8.62,  nav:8.63,  yield_annual:0.7950, divFreq:"weekly",    total_div_1y:7.08,   one_y_start:8.25,  six_m_start:9.66,  three_m_start:9.44,  ytd_start:9.39,  recent_divs:[["2026-01-07",0.088],["2026-01-14",0.082],["2026-01-21",0.082],["2026-01-28",0.083],["2026-02-04",0.082],["2026-02-11",0.074],["2026-02-18",0.078],["2026-02-25",0.072]], category:"Fund of Funds" },
+  "YMAG":  { name:"YieldMax Magnificent 7 Fund of Option Income ETFs", price:12.86, nav:12.78, yield_annual:0.4930, divFreq:"weekly", total_div_1y:6.752, one_y_start:10.41, six_m_start:12.44, three_m_start:13.48, ytd_start:13.44, recent_divs:[["2026-01-07",0.05],["2026-01-14",0.063],["2026-01-21",0.086],["2026-01-28",0.075],["2026-02-04",0.083],["2026-02-11",0.115],["2026-02-18",0.108],["2026-02-25",0.09]], category:"Fund of Funds" },
+  // Broad-market ETFs (common comparisons)
+  "SPY":   { name:"SPDR S&P 500 ETF Trust",                           price:566.02, nav:566.02, yield_annual:0.0123, divFreq:"quarterly", total_div_1y:6.955, one_y_start:474.02, six_m_start:530.65, three_m_start:567.56, ytd_start:567.98, recent_divs:[["2025-03-21",1.596],["2025-06-20",1.861],["2025-09-19",1.850],["2025-12-19",1.648]], category:"Equity Index" },
+  "QQQ":   { name:"Invesco QQQ Trust",                                price:484.23, nav:484.23, yield_annual:0.0059, divFreq:"quarterly", total_div_1y:2.850, one_y_start:432.35, six_m_start:463.17, three_m_start:506.53, ytd_start:506.29, recent_divs:[["2025-03-24",0.673],["2025-06-23",0.763],["2025-09-22",0.697],["2025-12-23",0.717]], category:"Equity Index" },
+  "VOO":   { name:"Vanguard S&P 500 ETF",                             price:519.31, nav:519.31, yield_annual:0.0113, divFreq:"quarterly", total_div_1y:5.872, one_y_start:432.58, six_m_start:487.31, three_m_start:520.52, ytd_start:521.07, recent_divs:[["2025-03-27",1.328],["2025-06-26",1.730],["2025-09-25",1.632],["2025-12-27",1.182]], category:"Equity Index" },
+  "VTI":   { name:"Vanguard Total Stock Market ETF",                  price:268.46, nav:268.46, yield_annual:0.0123, divFreq:"quarterly", total_div_1y:3.299, one_y_start:224.89, six_m_start:252.11, three_m_start:267.40, ytd_start:268.82, recent_divs:[["2025-03-27",0.715],["2025-06-26",0.944],["2025-09-25",0.890],["2025-12-27",0.750]], category:"Equity Index" },
+  "IVV":   { name:"iShares Core S&P 500 ETF",                         price:568.77, nav:568.77, yield_annual:0.0117, divFreq:"quarterly", total_div_1y:6.646, one_y_start:475.64, six_m_start:533.00, three_m_start:569.50, ytd_start:570.00, recent_divs:[["2025-03-28",1.498],["2025-06-27",1.935],["2025-09-26",1.811],["2025-12-26",1.402]], category:"Equity Index" },
+  "VGT":   { name:"Vanguard Information Technology ETF",              price:575.84, nav:575.84, yield_annual:0.0040, divFreq:"quarterly", total_div_1y:2.298, one_y_start:499.26, six_m_start:546.38, three_m_start:609.38, ytd_start:611.63, recent_divs:[["2025-03-27",0.476],["2025-06-26",0.603],["2025-09-25",0.665],["2025-12-27",0.554]], category:"Equity Index" },
+  "VTV":   { name:"Vanguard Value ETF",                               price:163.28, nav:163.28, yield_annual:0.0215, divFreq:"quarterly", total_div_1y:3.510, one_y_start:147.14, six_m_start:151.33, three_m_start:157.91, ytd_start:161.18, recent_divs:[["2025-03-27",0.836],["2025-06-26",0.919],["2025-09-25",0.919],["2025-12-27",0.836]], category:"Equity Index" },
+  "SCHG":  { name:"Schwab U.S. Large-Cap Growth ETF",                 price:95.48,  nav:95.48,  yield_annual:0.0039, divFreq:"quarterly", total_div_1y:0.372,  one_y_start:81.96,  six_m_start:88.32,  three_m_start:98.53,  ytd_start:98.45,  recent_divs:[["2025-03-24",0.083],["2025-06-23",0.099],["2025-09-22",0.097],["2025-12-22",0.093]], category:"Equity Index" },
+  "VXUS":  { name:"Vanguard Total International Stock ETF",           price:64.95,  nav:64.95,  yield_annual:0.0290, divFreq:"semiannual",total_div_1y:1.883,  one_y_start:58.45,  six_m_start:58.06,  three_m_start:60.44,  ytd_start:60.61,  recent_divs:[["2025-03-26",0.749],["2025-06-25",1.134]], category:"Equity Index" },
+  "AGG":   { name:"iShares Core U.S. Aggregate Bond ETF",             price:97.94,  nav:97.94,  yield_annual:0.0362, divFreq:"monthly",   total_div_1y:3.543,  one_y_start:96.02,  six_m_start:95.56,  three_m_start:97.24,  ytd_start:98.03,  recent_divs:[["2025-03-03",0.283],["2025-04-01",0.285],["2025-05-01",0.296],["2025-06-02",0.303],["2025-07-01",0.298],["2025-08-01",0.300],["2025-09-02",0.302],["2025-10-01",0.301],["2025-11-03",0.292],["2025-12-01",0.297],["2025-12-31",0.296],["2026-02-02",0.290]], category:"Equity Index" },
+};
+
+// ============================================================
+// HISTORICAL PROJECTION DATA
+// price_cagr + avg_div_yield derived from max available history
+// (supplemented by underlying index 10yr data for young ETFs)
+// basis_years: actual ETF history used; basis: data source
+// ============================================================
+// ============================================================
+// PROJECTION DATA — CORRECTED MODEL
+//
+// total_cagr = net annualised total return (price + dividends)
+//   - For ETFs with real history: price CAGR + avg annual dividend yield
+//     from their actual trading history.
+//   - For single-stock YieldMax: the raw div_yield (60–200%) is NOT additive
+//     with price_cagr, because high payouts fund NAV erosion. We use the
+//     net total return actually earned by investors over the ETF's history.
+//   - div_yield here is the SUSTAINABLE income yield used for income projections
+//     (i.e., what % of portfolio value is paid as cash each year).
+//
+// price_cagr: used for the "income not reinvested" scenario (portfolio value growth)
+// div_yield:  used to report annual cash income on the price value
+// total_cagr: used for the "dividends reinvested" scenario (DRIP compounding)
+// ============================================================
+const PROJ = {
+  // Equity Index — well-established, real history or strong index basis
+  "JEPI":  { price_cagr:0.085, div_yield:0.090, total_cagr:0.175, basis_years:5.8,  basis:"ETF 5.8yr history + SPY model" },
+  "JEPQ":  { price_cagr:0.105, div_yield:0.115, total_cagr:0.220, basis_years:3.8,  basis:"ETF 3.8yr history + QQQ model" },
+  "QYLD":  { price_cagr:0.091, div_yield:0.194, total_cagr:0.285, basis_years:10.0, basis:"10-year ETF history" },
+  "XYLD":  { price_cagr:0.084, div_yield:0.135, total_cagr:0.219, basis_years:10.0, basis:"10-year ETF history" },
+  "RYLD":  { price_cagr:0.048, div_yield:0.175, total_cagr:0.223, basis_years:6.9,  basis:"ETF 6.9yr history + IWM model" },
+  "DIVO":  { price_cagr:0.129, div_yield:0.068, total_cagr:0.197, basis_years:9.2,  basis:"ETF 9.2yr history" },
+  "GPIQ":  { price_cagr:0.105, div_yield:0.110, total_cagr:0.215, basis_years:2.4,  basis:"QQQ 10yr + ETF yield (2.4yr)" },
+  "GPIX":  { price_cagr:0.090, div_yield:0.090, total_cagr:0.180, basis_years:2.4,  basis:"SPY 10yr + ETF yield (2.4yr)" },
+  "TSPY":  { price_cagr:0.090, div_yield:0.130, total_cagr:0.220, basis_years:1.6,  basis:"SPY 10yr + ETF yield (1.6yr)" },
+  "SPYI":  { price_cagr:0.090, div_yield:0.120, total_cagr:0.210, basis_years:3.5,  basis:"SPY 10yr + ETF yield (3.5yr)" },
+  "QQQI":  { price_cagr:0.105, div_yield:0.140, total_cagr:0.245, basis_years:2.1,  basis:"QQQ 10yr + ETF yield (2.1yr)" },
+  "IWMI":  { price_cagr:0.070, div_yield:0.140, total_cagr:0.210, basis_years:1.7,  basis:"IWM 10yr + ETF yield (1.7yr)" },
+  "DJIA":  { price_cagr:0.077, div_yield:0.119, total_cagr:0.196, basis_years:4.0,  basis:"ETF 4yr history" },
+  "BALI":  { price_cagr:0.090, div_yield:0.089, total_cagr:0.179, basis_years:2.4,  basis:"SPY 10yr + ETF yield (2.4yr)" },
+  "KLIP":  { price_cagr:0.040, div_yield:0.250, total_cagr:0.290, basis_years:3.1,  basis:"ETF 3.1yr history — China CC" },
+  // Commodity
+  "GLDW":  { price_cagr:0.060, div_yield:0.080, total_cagr:0.140, basis_years:0.3,  basis:"GLD 10yr + WeeklyPay yield model" },
+  // Single-stock YieldMax — speculative, short history, high NAV erosion
+  // total_cagr = net investor return (NOT price_cagr + raw div_yield)
+  // div_yield = sustainable income yield used for income reporting only
+  "TSLY":  { price_cagr:-0.05, div_yield:0.350, total_cagr:0.180, basis_years:3.3,  basis:"ETF 3.3yr net return — speculative ⚠" },
+  "NVDY":  { price_cagr: 0.02, div_yield:0.400, total_cagr:0.200, basis_years:2.8,  basis:"ETF 2.8yr net return (NVDA bull run) — speculative ⚠" },
+  "CONY":  { price_cagr:-0.10, div_yield:0.300, total_cagr:0.120, basis_years:2.6,  basis:"ETF 2.6yr net return, high NAV decay — speculative ⚠" },
+  "MSFO":  { price_cagr:-0.02, div_yield:0.200, total_cagr:0.150, basis_years:2.5,  basis:"ETF 2.5yr net return — speculative ⚠" },
+  "AMZY":  { price_cagr: 0.05, div_yield:0.250, total_cagr:0.200, basis_years:2.6,  basis:"ETF 2.6yr net return — speculative ⚠" },
+  // Fund of funds
+  "YMAX":  { price_cagr:-0.10, div_yield:0.200, total_cagr:0.080, basis_years:2.1,  basis:"ETF 2.1yr history — fund of high-decay ETFs ⚠" },
+  "YMAG":  { price_cagr: 0.03, div_yield:0.250, total_cagr:0.200, basis_years:2.1,  basis:"ETF 2.1yr history — Mag7 bull run, speculative ⚠" },
+  // Broad-market ETFs — 10-year S&P 500 / index history
+  "SPY":   { price_cagr:0.105, div_yield:0.013, total_cagr:0.118, basis_years:10.0, basis:"S&P 500 10-year avg (2015–2025)" },
+  "IVV":   { price_cagr:0.105, div_yield:0.013, total_cagr:0.118, basis_years:10.0, basis:"S&P 500 10-year avg (2015–2025)" },
+  "VOO":   { price_cagr:0.105, div_yield:0.013, total_cagr:0.118, basis_years:10.0, basis:"S&P 500 10-year avg (2015–2025)" },
+  "VTI":   { price_cagr:0.103, div_yield:0.014, total_cagr:0.117, basis_years:10.0, basis:"Total market 10-year avg (2015–2025)" },
+  "QQQ":   { price_cagr:0.178, div_yield:0.006, total_cagr:0.184, basis_years:10.0, basis:"Nasdaq-100 10-year avg (2015–2025)" },
+  "VGT":   { price_cagr:0.195, div_yield:0.005, total_cagr:0.200, basis_years:10.0, basis:"Tech sector 10-year avg (2015–2025)" },
+  "VTV":   { price_cagr:0.083, div_yield:0.022, total_cagr:0.105, basis_years:10.0, basis:"Value index 10-year avg (2015–2025)" },
+  "SCHG":  { price_cagr:0.155, div_yield:0.005, total_cagr:0.160, basis_years:10.0, basis:"Large-cap growth 10-year avg (2015–2025)" },
+  "VXUS":  { price_cagr:0.048, div_yield:0.030, total_cagr:0.078, basis_years:10.0, basis:"Intl equity 10-year avg (2015–2025)" },
+  "AGG":   { price_cagr:0.008, div_yield:0.033, total_cagr:0.041, basis_years:10.0, basis:"US bond aggregate 10-year avg (2015–2025)" },
+};
+
+// For any unknown ticker fetched live: derive projection from its own CAGR data
+// Cap values to prevent runaway compounding from short-history anomalies
+function buildProjFromLive(d) {
+  const yrs = d.years_available || 1;
+  // Raw values from server
+  let pc = d.price_cagr   || 0.05;
+  let dy = d.trailing_div_yield || d.yield_annual || 0.08;
+  // Dampen short-history CAGRs — 1yr return is not a reliable projection basis
+  if (yrs < 1.5) {
+    // Blend 50% toward 10% (long-run market avg) to avoid using a single bull/bear year
+    pc = pc * 0.3 + 0.10 * 0.7;
+    dy = Math.min(dy, 0.25);
+  } else if (yrs < 3) {
+    pc = pc * 0.6 + 0.09 * 0.4;
+    dy = Math.min(dy, 0.25);
+  }
+  pc = Math.min(Math.max(pc, -0.20), 0.35);
+  dy = Math.min(Math.max(dy, 0),     0.30);  // cap income yield at 30% for projection
+  const total_cagr = Math.min(pc + dy, 0.45); // hard cap total at 45%
+  return {
+    price_cagr: pc, div_yield: dy, total_cagr,
+    basis_years: yrs,
+    basis: `ETF history (${yrs.toFixed(1)}yr)${yrs < 3 ? ' — limited history ⚠' : ''}`
+  };
+}
+
+// Runtime ETF store — starts from BUILTIN, enriched by live fetches
+let ETF_DATA = { ...BUILTIN };
+// Track which tickers came live vs cached
+let ETF_SOURCE = {}; // ticker -> 'live' | 'cache'
+
+// ============================================================
+// STATE
+// ============================================================
+let holdings = {};
+let charts = {};
+let searchDebounceTimer = null;
+let _lastEtfResults = null;   // stored for DRIP re-render
+let _lastPortfolioValue = 0;
+// Per-scenario rate overrides (null = use computed default)
+let _scenarioOverrides = { bear: { price: null, div: null }, base: { price: null, div: null }, bull: { price: null, div: null } };
+
+// ============================================================
+// SERVER HEALTH
+// ============================================================
+async function checkServer() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(1500) });
+    if (r.ok) {
+      serverOnline = true;
+      const badge = document.getElementById('serverBadge');
+      badge.className = 'badge badge-live';
+      badge.innerHTML = '<div class="live-dot"></div>SERVER LIVE';
+      badge.style.display = 'flex';
+      document.getElementById('serverNotice').style.display = 'none';
+      return true;
+    }
+  } catch {}
+  serverOnline = false;
+  const badge = document.getElementById('serverBadge');
+  badge.className = 'badge badge-cache';
+  badge.innerHTML = '<div class="cache-dot"></div>OFFLINE MODE';
+  badge.style.display = 'flex';
+  return false;
+}
+
+// ============================================================
+// LIVE DATA FETCH
+// ============================================================
+async function fetchLive(ticker) {
+  ticker = ticker.toUpperCase();
+  try {
+    const r = await fetch(`${API}/etf?ticker=${ticker}`, { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    if (d.error) return null;
+    ETF_DATA[ticker] = d;
+    ETF_SOURCE[ticker] = 'live';
+    return d;
+  } catch { return null; }
+}
+
+async function ensureData(ticker) {
+  ticker = ticker.toUpperCase();
+  if (ETF_SOURCE[ticker] === 'live') return ETF_DATA[ticker]; // already fresh live data
+  if (serverOnline) {
+    const live = await fetchLive(ticker);
+    if (live) return live; // got fresh data, ETF_SOURCE set to 'live' inside fetchLive
+  }
+  // Fall back to cache — but only if it's a real entry (has a price), not just a stub
+  const cached = ETF_DATA[ticker];
+  if (cached && cached.price > 0) { ETF_SOURCE[ticker] = 'cache'; return cached; }
+  return null;
+}
+
+// ============================================================
+// SEARCH
+// ============================================================
+const QUICK_SUGGESTIONS = [
+  { ticker:'JEPI', name:'JPMorgan Equity Premium Income ETF' },
+  { ticker:'JEPQ', name:'JPMorgan Nasdaq Equity Premium Income ETF' },
+  { ticker:'GPIX', name:'Goldman Sachs S&P 500 Premium Income ETF' },
+  { ticker:'GPIQ', name:'Goldman Sachs Nasdaq-100 Premium Income ETF' },
+  { ticker:'TSPY', name:'TappAlpha SPY Growth & Daily Income ETF' },
+  { ticker:'SPYI', name:'Neos S&P 500 High Income ETF' },
+  { ticker:'QQQI', name:'NEOS Nasdaq-100 High Income ETF' },
+  { ticker:'QYLD', name:'Global X NASDAQ 100 Covered Call ETF' },
+  { ticker:'XYLD', name:'Global X S&P 500 Covered Call ETF' },
+  { ticker:'RYLD', name:'Global X Russell 2000 Covered Call ETF' },
+  { ticker:'DJIA', name:'Global X Dow 30 Covered Call ETF' },
+  { ticker:'IWMI', name:'NEOS Russell 2000 High Income ETF' },
+  { ticker:'DIVO', name:'Amplify CWP Enhanced Dividend Income ETF' },
+  { ticker:'BALI', name:'iShares U.S. Large Cap Premium Income Active ETF' },
+  { ticker:'KLIP', name:'KraneShares KWEB Covered Call Strategy ETF' },
+  { ticker:'GLDW', name:'Roundhill Gold WeeklyPay ETF' },
+  { ticker:'SPY',  name:'SPDR S&P 500 ETF Trust' },
+  { ticker:'QQQ',  name:'Invesco QQQ Trust' },
+  { ticker:'VOO',  name:'Vanguard S&P 500 ETF' },
+  { ticker:'VTI',  name:'Vanguard Total Stock Market ETF' },
+  { ticker:'IVV',  name:'iShares Core S&P 500 ETF' },
+  { ticker:'VGT',  name:'Vanguard Information Technology ETF' },
+  { ticker:'VTV',  name:'Vanguard Value ETF' },
+  { ticker:'SCHG', name:'Schwab U.S. Large-Cap Growth ETF' },
+  { ticker:'VXUS', name:'Vanguard Total International Stock ETF' },
+  { ticker:'AGG',  name:'iShares Core U.S. Aggregate Bond ETF' },
+  { ticker:'TSLY', name:'YieldMax TSLA Option Income Strategy ETF' },
+  { ticker:'NVDY', name:'YieldMax NVDA Option Income Strategy ETF' },
+  { ticker:'CONY', name:'YieldMax COIN Option Income Strategy ETF' },
+  { ticker:'MSFO', name:'YieldMax MSFT Option Income Strategy ETF' },
+  { ticker:'AMZY', name:'YieldMax AMZN Option Income Strategy ETF' },
+  { ticker:'YMAX', name:'YieldMax Universe Fund of Option Income ETFs' },
+  { ticker:'YMAG', name:'YieldMax Magnificent 7 Fund of Option Income ETFs' },
+];
+
+document.getElementById('etfSearch').addEventListener('input', function() {
+  clearTimeout(searchDebounceTimer);
+  const q = this.value.trim();
+  const dd = document.getElementById('searchDropdown');
+  const spinner = document.getElementById('searchSpinner');
+
+  if (!q) { dd.style.display='none'; return; }
+
+  // Immediate local match
+  const localMatches = QUICK_SUGGESTIONS.filter(s =>
+    s.ticker.toLowerCase().includes(q.toLowerCase()) ||
+    s.name.toLowerCase().includes(q.toLowerCase())
+  ).slice(0,8);
+
+  if (localMatches.length > 0) {
+    renderDropdown(localMatches.map(s => ({
+      ticker: s.ticker,
+      name: s.name,
+      source: 'cache',
+      yield_annual: ETF_DATA[s.ticker]?.yield_annual
+    })));
+  }
+
+  // If server online, also query live (debounced)
+  if (serverOnline && q.length >= 2) {
+    searchDebounceTimer = setTimeout(async () => {
+      spinner.style.display = 'inline';
+      try {
+        const r = await fetch(`${API}/search?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(5000) });
+        const results = await r.json();
+        spinner.style.display = 'none';
+        if (results.length > 0) {
+          // Merge: live results first (deduplicated), then local
+          const liveSet = new Set(results.map(r => r.ticker));
+          const merged = [
+            ...results.map(r => ({ ticker: r.ticker, name: r.name, source: 'live', yield_annual: ETF_DATA[r.ticker]?.yield_annual })),
+            ...localMatches.filter(s => !liveSet.has(s.ticker)).map(s => ({ ticker: s.ticker, name: s.name, source: 'cache', yield_annual: ETF_DATA[s.ticker]?.yield_annual }))
+          ].slice(0, 10);
+          // Pre-seed ETF_DATA with name for any live result not already known,
+          // and kick off background full-data fetch so addETF won't fail
+          results.forEach(r => {
+            if (!ETF_DATA[r.ticker]) ETF_DATA[r.ticker] = { name: r.name, price: 0, yield_annual: 0 };
+            if (ETF_SOURCE[r.ticker] !== 'live') fetchLive(r.ticker); // background prefetch
+          });
+          renderDropdown(merged);
+        }
+      } catch { spinner.style.display = 'none'; }
+    }, 400);
+  }
+});
+
+function renderDropdown(items) {
+  const dd = document.getElementById('searchDropdown');
+  if (items.length === 0) {
+    dd.innerHTML = '<div style="padding:12px 14px;color:#718096;font-size:13px;">No ETFs found. Try: JEPI, GPIX, TSPY, QYLD…</div>';
+  } else {
+    dd.innerHTML = items.map(item => {
+      const added = holdings[item.ticker] ? ' ✓' : '';
+      const yieldStr = item.yield_annual != null ? (item.yield_annual * 100).toFixed(1) + '% yield' : '';
+      const srcTag = item.source === 'live'
+        ? '<span class="sri-live-tag">LIVE</span>'
+        : '<span class="sri-cache-tag">CACHED</span>';
+      return `<div class="sri" onclick="addETF('${item.ticker}')">
+        <div>
+          <div class="sri-ticker">${item.ticker}${srcTag}${added ? ' <span style="color:#68d391;font-size:11px;">✓ added</span>' : ''}</div>
+          <div class="sri-name">${item.name}</div>
+          <div class="sri-meta">${item.source === 'live' ? 'Live from Yahoo Finance' : 'Cached data (Mar 2026)'}</div>
+        </div>
+        <div class="sri-yield">${yieldStr}</div>
+      </div>`;
+    }).join('');
+  }
+  dd.style.display = 'block';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrapper')) {
+    document.getElementById('searchDropdown').style.display = 'none';
+  }
+});
+
+// ============================================================
+// HOLDINGS
+// ============================================================
+async function addETF(ticker) {
+  ticker = ticker.toUpperCase();
+  document.getElementById('searchDropdown').style.display = 'none';
+  document.getElementById('etfSearch').value = '';
+
+  if (holdings[ticker]) return; // already added
+
+  // Show loading placeholder
+  holdings[ticker] = 0;
+  renderHoldings(true);
+
+  // Fetch data (live or cache)
+  const data = await ensureData(ticker);
+  if (!data) {
+    delete holdings[ticker];
+    alert(`Could not find data for "${ticker}". Check the ticker symbol and try again.`);
+    renderHoldings();
+    return;
+  }
+
+  // Auto-distribute evenly
+  const tickers = Object.keys(holdings);
+  const count = tickers.length;
+  const even = Math.round(100 / count);
+  tickers.forEach((t, i) => {
+    holdings[t] = i === tickers.length - 1 ? 100 - even * (count - 1) : even;
+  });
+
+  renderHoldings();
+}
+
+function removeETF(ticker) {
+  delete holdings[ticker];
+  renderHoldings();
+  if (Object.keys(holdings).length === 0) {
+    document.getElementById('resultsPanel').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'flex';
+  }
+}
+
+function renderHoldings(loading = false) {
+  const list = document.getElementById('holdingsList');
+  const tickers = Object.keys(holdings);
+  document.getElementById('holdingCount').textContent = `(${tickers.length} ETF${tickers.length!==1?'s':''})`;
+
+  if (tickers.length === 0) {
+    list.innerHTML = '<div class="no-holdings">Search and add ETFs above</div>';
+    document.getElementById('allocSummary').style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = tickers.map(t => {
+    const d = ETF_DATA[t];
+    const pct = holdings[t];
+    const dollars = d ? fmt$(getPortfolioSize() * pct / 100) : '…';
+    const priceStr = d ? `${fmt$(d.price)}/share · ${(d.yield_annual*100).toFixed(1)}% yield` : 'Loading…';
+    const srcClass = ETF_SOURCE[t] === 'live' ? 'src-live' : 'src-cache';
+    const srcLabel = ETF_SOURCE[t] === 'live' ? 'LIVE' : 'CACHED';
+    const nameStr = d ? d.name.substring(0,42)+(d.name.length>42?'…':'') : t;
+
+    return `<div class="holding-card" id="hc-${t}">
+      <div class="holding-header">
+        <div>
+          <div class="holding-ticker">${t}<span class="holding-source ${srcClass}">${srcLabel}</span></div>
+          <div class="holding-name">${nameStr}</div>
+        </div>
+        <button class="holding-remove" onclick="removeETF('${t}')">✕</button>
+      </div>
+      <div class="alloc-row">
+        <input type="range" class="alloc-slider" min="0" max="100" value="${pct}"
+          oninput="updateAlloc('${t}',this.value)" />
+        <input type="number" class="alloc-input" min="0" max="100" value="${pct}"
+          onchange="updateAlloc('${t}',this.value)" />
+        <span style="font-size:11px;color:#718096;">%</span>
+      </div>
+      <div class="holding-price">${dollars} · ${priceStr}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('allocSummary').style.display = 'block';
+  updateAllocBar();
+}
+
+function updateAlloc(ticker, val) {
+  val = Math.max(0, Math.min(100, parseInt(val) || 0));
+  holdings[ticker] = val;
+  const card = document.getElementById('hc-' + ticker);
+  if (card) {
+    card.querySelector('.alloc-slider').value = val;
+    card.querySelector('.alloc-input').value = val;
+    const d = ETF_DATA[ticker];
+    const dollars = d ? fmt$(getPortfolioSize() * val / 100) : '…';
+    const priceStr = d ? `${fmt$(d.price)}/share · ${(d.yield_annual*100).toFixed(1)}% yield` : '…';
+    card.querySelector('.holding-price').textContent = `${dollars} · ${priceStr}`;
+  }
+  updateAllocBar();
+}
+
+function updateAllocBar() {
+  const total = Object.values(holdings).reduce((a,b)=>a+b,0);
+  const fill = document.getElementById('allocBarFill');
+  const text = document.getElementById('totalAllocText');
+  const hint = document.getElementById('allocHint');
+  fill.style.width = Math.min(total, 100) + '%';
+  text.textContent = total + '%';
+  if (total < 100)      { fill.style.background='#d69e2e'; text.style.color='#f6e05e'; hint.textContent=`⚠ ${100-total}% unallocated`; }
+  else if (total > 100) { fill.style.background='#e53e3e'; text.style.color='#fc8181'; hint.textContent=`⚠ Over by ${total-100}%`; }
+  else                  { fill.style.background='#38a169'; text.style.color='#68d391'; hint.textContent='✓ Fully allocated'; }
+}
+
+// ============================================================
+// PORTFOLIO CALCULATION
+// ============================================================
+async function calculatePortfolio() {
+  const tickers = Object.keys(holdings);
+  if (tickers.length === 0) { alert('Please add at least one ETF.'); return; }
+  const totalAlloc = Object.values(holdings).reduce((a,b)=>a+b,0);
+  if (totalAlloc > 100) { alert(`Total is ${totalAlloc}%. Please reduce to ≤100%.`); return; }
+
+  const btn = document.getElementById('calcBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin" style="vertical-align:middle;margin-right:8px;"></span> Fetching live data…';
+
+  // Ensure all tickers have fresh data
+  if (serverOnline) {
+    await Promise.all(tickers.map(t => ensureData(t)));
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⚡ Calculate Portfolio Performance';
+
+  const portfolioSize = getPortfolioSize();
+  let wtdYield=0, totalDivAnnual=0, weightedYTD=0, weighted3M=0, weighted6M=0, weighted1Y=0;
+  const etfResults = [];
+
+  tickers.forEach(t => {
+    const d = ETF_DATA[t];
+    if (!d) return;
+    const w = holdings[t] / 100;
+    const invested = portfolioSize * w;
+    const shares = invested / d.price;
+
+    const ytdReturn   = (d.price - d.ytd_start)     / d.ytd_start;
+    const threeReturn = (d.price - d.three_m_start)  / d.three_m_start;
+    const sixReturn   = (d.price - d.six_m_start)    / d.six_m_start;
+    const oneYReturn  = (d.price - d.one_y_start)    / d.one_y_start;
+    const annualDivIncome = shares * d.total_div_1y;
+    const annualDivYield  = d.total_div_1y / d.price;
+    const totalReturn1Y   = oneYReturn + (d.total_div_1y / d.one_y_start);
+    const recentDiv = d.recent_divs.length > 0 ? d.recent_divs[d.recent_divs.length-1][1] : d.total_div_1y/12;
+
+    weightedYTD   += ytdReturn   * w;
+    weighted3M    += threeReturn * w;
+    weighted6M    += sixReturn   * w;
+    weighted1Y    += oneYReturn  * w;
+    wtdYield      += annualDivYield * w;
+    totalDivAnnual+= annualDivIncome;
+
+    etfResults.push({ ticker:t, data:d, weight:holdings[t], invested, shares,
+      ytdReturn, threeReturn, sixReturn, oneYReturn, totalReturn1Y,
+      annualDivYield, annualDivIncome, recentDiv,
+      source: ETF_SOURCE[t] || 'cache' });
+  });
+
+  const portfolioAllocated = portfolioSize * (totalAlloc / 100);
+  const cashBuffer = portfolioSize * ((100 - totalAlloc) / 100);
+  const totalReturn1Y = weighted1Y + (totalDivAnnual / portfolioAllocated);
+  const liveCount = etfResults.filter(r => r.source === 'live').length;
+
+  // Store for DRIP slider re-render; reset per-scenario overrides on fresh calc
+  _lastEtfResults = etfResults;
+  _lastPortfolioValue = portfolioAllocated;
+  _scenarioOverrides = { bear: { price: null, div: null }, base: { price: null, div: null }, bull: { price: null, div: null } };
+
+  renderResults(etfResults, portfolioSize, portfolioAllocated, totalDivAnnual, wtdYield,
+    weightedYTD, weighted3M, weighted6M, weighted1Y, totalReturn1Y, cashBuffer, liveCount);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function renderResults(etfResults, portfolioSize, portfolioAllocated, totalDivAnnual, wtdYield,
+    weightedYTD, weighted3M, weighted6M, weighted1Y, totalReturn1Y, cashBuffer, liveCount) {
+
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsPanel').style.display = 'block';
+
+  const totalAlloc = Object.values(holdings).reduce((a,b)=>a+b,0);
+  const dataNote = serverOnline
+    ? `${liveCount}/${etfResults.length} ETFs live · ${etfResults.length - liveCount} cached`
+    : `Offline mode · cached data (Mar 2026)`;
+
+  document.getElementById('resultsPanel').innerHTML = `
+    <!-- SUMMARY CARDS -->
+    <div class="summary-cards">
+      <div class="sc">
+        <div class="sc-label">Portfolio Value</div>
+        <div class="sc-value">${fmt$(portfolioSize)}</div>
+        <div class="sc-sub">${fmt$(portfolioAllocated)} invested${cashBuffer>100?' · '+fmt$(cashBuffer)+' cash':''}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-label">Est. Annual Income</div>
+        <div class="sc-value pos">${fmt$(totalDivAnnual)}</div>
+        <div class="sc-sub">Blended yield: ${fmtPct(wtdYield)}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-label">Monthly / Daily Income</div>
+        <div class="sc-value pos">${fmt$(totalDivAnnual/12)}</div>
+        <div class="sc-sub">Daily: ${fmt$(totalDivAnnual/365)}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-label">1Y Total Return</div>
+        <div class="sc-value ${colorClass(totalReturn1Y)}">${arrow(totalReturn1Y)} ${fmtPct(Math.abs(totalReturn1Y))}</div>
+        <div class="sc-sub">Price only: ${arrow(weighted1Y)} ${fmtPct(Math.abs(weighted1Y))}</div>
+      </div>
+    </div>
+
+    <!-- PRICE PERFORMANCE -->
+    <div class="results-section">
+      <div class="rs-header">
+        <h3>📊 Price Performance by Period</h3>
+        <span>${dataNote}</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>ETF</th><th>Weight</th><th>Invested</th>
+          <th>YTD</th><th>3 Month</th><th>6 Month</th><th>1 Year</th>
+        </tr></thead>
+        <tbody>
+          ${etfResults.map(r => `<tr>
+            <td>
+              <span class="tkbadge">${r.ticker}</span>
+              ${r.source==='live' ? '<span class="sri-live-tag" style="font-size:9px;background:#22543d;color:#68d391;border:1px solid #276749;border-radius:3px;padding:1px 4px;margin-left:4px;">LIVE</span>' : ''}
+              <span class="fname">${r.data.name.substring(0,38)}${r.data.name.length>38?'…':''}</span>
+            </td>
+            <td><span class="wbadge">${r.weight}%</span></td>
+            <td>${fmt$(r.invested)}</td>
+            <td class="${colorClass(r.ytdReturn)}">${arrow(r.ytdReturn)} ${fmtPct(Math.abs(r.ytdReturn))}</td>
+            <td class="${colorClass(r.threeReturn)}">${arrow(r.threeReturn)} ${fmtPct(Math.abs(r.threeReturn))}</td>
+            <td class="${colorClass(r.sixReturn)}">${arrow(r.sixReturn)} ${fmtPct(Math.abs(r.sixReturn))}</td>
+            <td class="${colorClass(r.oneYReturn)}">${arrow(r.oneYReturn)} ${fmtPct(Math.abs(r.oneYReturn))}</td>
+          </tr>`).join('')}
+          <tr class="total-row">
+            <td><span style="color:#a0aec0;">📊 PORTFOLIO WEIGHTED</span></td>
+            <td><span class="wbadge">${totalAlloc}%</span></td>
+            <td>${fmt$(portfolioAllocated)}</td>
+            <td class="${colorClass(weightedYTD)}">${arrow(weightedYTD)} ${fmtPct(Math.abs(weightedYTD))}</td>
+            <td class="${colorClass(weighted3M)}">${arrow(weighted3M)} ${fmtPct(Math.abs(weighted3M))}</td>
+            <td class="${colorClass(weighted6M)}">${arrow(weighted6M)} ${fmtPct(Math.abs(weighted6M))}</td>
+            <td class="${colorClass(weighted1Y)}">${arrow(weighted1Y)} ${fmtPct(Math.abs(weighted1Y))}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DIVIDEND INCOME -->
+    <div class="results-section">
+      <div class="rs-header">
+        <h3>💰 Dividend Income Analysis</h3>
+        <span>Trailing 12 months · ${fmt$(portfolioSize)} portfolio</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>ETF</th><th>Freq</th><th>Annual Yield</th>
+          <th>Annual Income</th><th>Monthly Income</th><th>Daily Income</th><th>Last Div</th>
+        </tr></thead>
+        <tbody>
+          ${etfResults.map(r => `<tr>
+            <td><span class="tkbadge">${r.ticker}</span><span class="fname">${r.data.category}</span></td>
+            <td style="color:#a0aec0;text-transform:capitalize;">${r.data.divFreq}</td>
+            <td class="pos" style="font-weight:700;">${fmtPct(r.annualDivYield)}</td>
+            <td class="pos">${fmt$(r.annualDivIncome)}</td>
+            <td class="pos">${fmt$(r.annualDivIncome/12)}</td>
+            <td class="pos">${fmt$(r.annualDivIncome/365)}</td>
+            <td>${fmt$(r.recentDiv)}</td>
+          </tr>`).join('')}
+          <tr class="total-row">
+            <td><span style="color:#a0aec0;">📊 TOTAL</span></td>
+            <td>—</td>
+            <td class="pos" style="font-weight:700;">${fmtPct(wtdYield)}</td>
+            <td class="pos">${fmt$(totalDivAnnual)}</td>
+            <td class="pos">${fmt$(totalDivAnnual/12)}</td>
+            <td class="pos">${fmt$(totalDivAnnual/365)}</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- NAV EROSION & TOTAL RETURN -->
+    <div class="results-section">
+      <div class="rs-header">
+        <h3>🧮 NAV Erosion & Total Return (1 Year)</h3>
+        <span>Total Return = Price Change + Dividends Collected</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>ETF</th><th>1Y Ago Price</th><th>Current Price</th>
+          <th>Price Change</th><th>Divs/Share (1Y)</th><th>NAV Change</th><th>Total Return</th>
+        </tr></thead>
+        <tbody>
+          ${etfResults.map(r => {
+            const priceChange = r.data.price - r.data.one_y_start;
+            const isErosion = priceChange < 0;
+            return `<tr>
+              <td><span class="tkbadge">${r.ticker}</span></td>
+              <td>${fmt$(r.data.one_y_start)}</td>
+              <td>${fmt$(r.data.price)}</td>
+              <td class="${colorClass(priceChange)}">${arrow(priceChange)} ${fmt$(Math.abs(priceChange))} (${fmtPct(Math.abs(r.oneYReturn))})</td>
+              <td class="pos">+${fmt$(r.data.total_div_1y)}</td>
+              <td><span class="nav-pill ${isErosion?'nav-bad':'nav-ok'}">
+                ${isErosion ? '▼ '+fmt$(Math.abs(priceChange)) : '▲ '+fmt$(priceChange)}
+              </span></td>
+              <td class="${colorClass(r.totalReturn1Y)}" style="font-weight:700;">
+                ${arrow(r.totalReturn1Y)} ${fmtPct(Math.abs(r.totalReturn1Y))}
+              </td>
+            </tr>`;
+          }).join('')}
+          <tr class="total-row">
+            <td><span style="color:#a0aec0;">📊 PORTFOLIO</span></td>
+            <td>—</td><td>—</td>
+            <td class="${colorClass(weighted1Y)}">${arrow(weighted1Y)} ${fmtPct(Math.abs(weighted1Y))}</td>
+            <td class="pos">+${fmt$(totalDivAnnual)} total</td>
+            <td>—</td>
+            <td class="${colorClass(totalReturn1Y)}" style="font-weight:700;">${arrow(totalReturn1Y)} ${fmtPct(Math.abs(totalReturn1Y))}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===================== PROJECTION SECTION ===================== -->
+    <div id="projectionContainer">${renderProjectionHTML(etfResults, portfolioAllocated)}</div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card"><h3>Portfolio Allocation</h3><div class="chart-box"><canvas id="allocChart"></canvas></div></div>
+      <div class="chart-card"><h3>Annual Dividend Yield by ETF</h3><div class="chart-box"><canvas id="yieldChart"></canvas></div></div>
+      <div class="chart-card"><h3>Price Return vs Total Return (1Y)</h3><div class="chart-box"><canvas id="returnChart"></canvas></div></div>
+      <div class="chart-card"><h3>Projected Monthly Income</h3><div class="chart-box"><canvas id="incomeChart"></canvas></div></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card" style="grid-column:1/-1;"><h3>📈 Portfolio Growth Projection — Base Scenario (Dividends Reinvested)</h3><div class="chart-box-tall"><canvas id="projChart"></canvas></div></div>
+    </div>
+
+    <!-- RECENT DIVIDENDS -->
+    <div class="results-section">
+      <div class="rs-header">
+        <h3>📅 Recent Dividend Payments</h3>
+        <span>Per-share · ex-date · your income</span>
+      </div>
+      <table>
+        <thead><tr>
+          <th>ETF</th>
+          ${Array.from({length:8},(_,i)=>`<th>Pay ${8-i}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${etfResults.map(r => {
+            const divs = r.data.recent_divs.slice(-8);
+            const cells = Array.from({length:8}, (_,i) => {
+              const idx = divs.length - 1 - (7 - i);
+              const d = idx >= 0 ? divs[idx] : null;
+              if (!d) return '<td style="color:#4a5568;">—</td>';
+              return `<td>
+                <div class="pos" style="font-weight:600;">${fmt$(d[1])}</div>
+                <div style="font-size:10px;color:#718096;">${d[0].substring(5)}</div>
+                <div style="font-size:10px;color:#4a5568;">${fmt$(r.shares * d[1])}</div>
+              </td>`;
+            });
+            return `<tr>
+              <td><span class="tkbadge">${r.ticker}</span><span class="fname">${r.weight}% · ${fmt$(r.invested)}</span></td>
+              ${cells.join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="padding:10px 16px;font-size:11px;color:#4a5568;">Per-share · ex-date · your portfolio income from that payment</div>
+    </div>
+
+    <div class="data-footer">
+      ${serverOnline
+        ? `⚡ Live data from Yahoo Finance via ${API} · ${liveCount}/${etfResults.length} ETFs refreshed`
+        : `📦 Offline mode · built-in data as of March 2, 2026 · run cc_simulator_server.py for live quotes`}
+      &nbsp;·&nbsp; Past performance does not guarantee future results
+    </div>
+  `;
+
+  setTimeout(() => renderCharts(etfResults, totalDivAnnual), 50);
+}
+
+// ============================================================
+// PROJECTION LOGIC
+// ============================================================
+function getProjData(ticker) {
+  if (PROJ[ticker]) return PROJ[ticker];
+  // Live-fetched ETF: derive from its stored data
+  const d = ETF_DATA[ticker];
+  if (d) return buildProjFromLive(d);
+  return { price_cagr:0.08, div_yield:0.08, basis_years:1, basis:'Estimated', underlying_cagr:0.15 };
+}
+
+// ============================================================
+// CORRECT PROJECTION MODEL
+//
+// Two scenarios:
+//   reinvest=true  → compound the total_cagr (price + divs reinvested)
+//                    value(t) = start × (1 + wtdTotalCagr × scenario_adj)^t
+//   reinvest=false → price grows at price_cagr, dividends taken as cash
+//                    price_value(t) = start × (1 + wtdPriceCagr × adj)^t
+//                    income(t) = price_value(t) × wtdDivYield
+//
+// scenario_adj scales the total_cagr for bear/base/bull without
+// double-compounding the yield component.
+// ============================================================
+function projectPortfolio(etfResults, startValue, years, total_cagr_adj, reinvest, dripPct, rateOverride) {
+  // dripPct: 0.0 = all income taken as cash, 1.0 = all reinvested (legacy reinvest=true === dripPct=1)
+  if (dripPct === undefined) dripPct = reinvest ? 1.0 : 0.0;
+  let wtdTotalCagr = 0;
+  let wtdPriceCagr = 0;
+  let wtdDivYield  = 0;
+  const totalW = etfResults.reduce((a,r) => a + r.weight, 0) || 100;
+
+  etfResults.forEach(r => {
+    const p = getProjData(r.ticker);
+    const w = r.weight / totalW;
+    wtdTotalCagr += p.total_cagr * w;
+    wtdPriceCagr += p.price_cagr * w;
+    wtdDivYield  += p.div_yield  * w;
+  });
+
+  // If per-scenario overrides provided, use them directly; otherwise apply scenario adj
+  let adjPrice, adjDiv;
+  if (rateOverride && rateOverride.price !== null && rateOverride.div !== null) {
+    adjPrice = rateOverride.price;
+    adjDiv   = rateOverride.div;
+  } else if (rateOverride && rateOverride.price !== null) {
+    adjPrice = rateOverride.price;
+    adjDiv   = wtdDivYield * Math.pow(total_cagr_adj, 0.5);
+  } else if (rateOverride && rateOverride.div !== null) {
+    adjPrice = wtdPriceCagr * total_cagr_adj;
+    adjDiv   = rateOverride.div;
+  } else {
+    adjPrice = wtdPriceCagr * total_cagr_adj;
+    adjDiv   = wtdDivYield  * Math.pow(total_cagr_adj, 0.5);
+  }
+  const adjTotal = adjPrice + adjDiv;
+
+  // DRIP blending: effective growth rate is between price-only and total-return,
+  // depending on what fraction of dividends are reinvested.
+  // effectiveCagr = adjPrice + dripPct * adjDiv  (partial reinvestment)
+  // income fraction = (1 - dripPct) of dividends, paid on the growing NAV base
+  const effectiveCagr = adjPrice + dripPct * adjDiv;
+
+  const yearlyData = [{
+    year:0, drip_value:startValue, price_value:startValue,
+    income_annual:startValue * adjDiv * (1 - dripPct), total_value:startValue, cumulative_income:0
+  }];
+  let cumulativeIncome = 0;
+
+  for (let y = 1; y <= years; y++) {
+    // Portfolio value grows at blended rate (price + reinvested portion of div)
+    const portfolioValue = startValue * Math.pow(1 + effectiveCagr, y);
+    // NAV track for income base: use price-only growth (income paid on NAV, not on reinvested gains)
+    const priceValue = startValue * Math.pow(1 + adjPrice, y);
+    // Cash income = non-reinvested portion of div yield × price-only NAV
+    const income = priceValue * adjDiv * (1 - dripPct);
+    cumulativeIncome += income;
+    // For legacy compatibility keep drip_value as full-reinvest value
+    const dripValue = startValue * Math.pow(1 + adjTotal, y);
+    yearlyData.push({ year:y, drip_value:dripValue, price_value:priceValue,
+      income_annual:income, total_value:portfolioValue, cumulative_income:cumulativeIncome });
+  }
+
+  return { yearlyData, wtdTotalCagr: adjTotal, wtdPriceCagr: adjPrice, wtdDivYield: adjDiv };
+}
+
+function reRenderProjection() {
+  if (!_lastEtfResults) return;
+  const container = document.getElementById('projectionContainer');
+  if (!container) return;
+  container.innerHTML = renderProjectionHTML(_lastEtfResults, _lastPortfolioValue);
+}
+
+function renderProjectionHTML(etfResults, startValue) {
+  // Three scenarios scaling the total_cagr
+  // Bear: 70% of historical total return | Base: 100% | Bull: 130%
+  const MILESTONES = [1, 5, 10, 15];
+  const scenarios = [
+    { id:'bear', label:'🐻 Bear Case', desc:'', adj:0.70 },
+    { id:'base', label:'📊 Base Case', desc:'', adj:1.00 },
+    { id:'bull', label:'🐂 Bull Case', desc:'', adj:1.30 },
+  ];
+
+  // Read current DRIP % from slider (default 100% if not yet rendered)
+  const dripSlider = document.getElementById('dripSlider');
+  const dripPct = dripSlider ? parseInt(dripSlider.value) / 100 : 1.0;
+
+  // Compute raw weighted rates directly from ETF data (unscaled, for slider defaults)
+  const totalW = etfResults.reduce((a,r) => a + r.weight, 0) || 100;
+  let rawPriceCagr = 0, rawDivYield = 0;
+  etfResults.forEach(r => {
+    const p = getProjData(r.ticker);
+    const w = r.weight / totalW;
+    rawPriceCagr += p.price_cagr * w;
+    rawDivYield  += p.div_yield  * w;
+  });
+  const basePriceRate = rawPriceCagr;
+  const baseDivRate   = rawDivYield;
+
+  const computed = scenarios.map(s => {
+    // Default rates for this scenario (what we'd use without override)
+    const defPrice = basePriceRate * s.adj;
+    const defDiv   = baseDivRate   * Math.pow(s.adj, 0.5);
+    // Read overrides (or fall back to defaults)
+    const ovr = _scenarioOverrides[s.id];
+    const usePrice = (ovr && ovr.price !== null) ? ovr.price : defPrice;
+    const useDiv   = (ovr && ovr.div   !== null) ? ovr.div   : defDiv;
+    const adjRate  = usePrice + useDiv;
+    const desc = `${(adjRate*100).toFixed(1)}% total · ${(usePrice*100).toFixed(1)}% price + ${(useDiv*100).toFixed(1)}% div`;
+    const proj = projectPortfolio(etfResults, startValue, 15, s.adj, true, dripPct,
+      { price: usePrice, div: useDiv });
+    return { ...s, desc, proj, defPrice, defDiv, usePrice, useDiv };
+  });
+
+  // Weighted avg rates for base display
+  const base = computed[1].proj;
+
+  // Build per-ETF projection table rows
+  const etfRows = etfResults.map(r => {
+    const p = getProjData(r.ticker);
+    const w = r.weight;
+    const invested = startValue * w / 100;
+    // Use DRIP-blended rate: price_cagr + dripPct × div_yield
+    const blendedCagr = p.price_cagr + dripPct * p.div_yield;
+    const v1  = invested * Math.pow(1 + blendedCagr, 1);
+    const v5  = invested * Math.pow(1 + blendedCagr, 5);
+    const v10 = invested * Math.pow(1 + blendedCagr, 10);
+    const v15 = invested * Math.pow(1 + blendedCagr, 15);
+    const srcClass = p.basis_years >= 9 ? 'src-10y' : p.basis_years >= 3 ? 'src-full' : 'src-bm';
+    const srcLabel = p.basis_years >= 9 ? '10YR' : p.basis_years >= 3 ? `${p.basis_years.toFixed(0)}YR` : 'MODEL';
+    const specWarning = p.basis.includes('⚠') ? ' ⚠' : '';
+    return `<tr>
+      <td><span class="tkbadge">${r.ticker}</span><span class="data-src-tag ${srcClass}">${srcLabel}</span>
+          <span class="fname" style="font-size:10px;">${p.basis}</span></td>
+      <td><span class="wbadge">${w}%</span></td>
+      <td>${fmt$(invested)}</td>
+      <td style="color:#a0aec0;">${(p.price_cagr*100).toFixed(1)}%</td>
+      <td style="color:#68d391;">${(p.div_yield*100).toFixed(1)}%</td>
+      <td style="color:#63b3ed;font-weight:600;">${(p.total_cagr*100).toFixed(1)}%</td>
+      <td class="pos">${fmt$(v1)}</td>
+      <td class="pos">${fmt$(v5)}</td>
+      <td class="pos" style="font-weight:700;">${fmt$(v10)}</td>
+      <td class="pos" style="font-weight:700;">${fmt$(v15)}</td>
+    </tr>`;
+  }).join('');
+
+  // Milestone cards HTML
+  const scenarioHTML = computed.map(s => {
+    const milestoneHTML = MILESTONES.map(yr => {
+      const pt = s.proj.yearlyData[yr];
+      const gain = ((pt.total_value - startValue) / startValue * 100).toFixed(0);
+      const monthly = (pt.income_annual / 12);
+      return `<div class="proj-milestone">
+        <div>
+          <div class="proj-year">${yr === 1 ? 'First Year' : yr + ' Years'}</div>
+          <div class="proj-gain ${s.id==='bear'?'neg':s.id==='bull'?'pos':''}">+${gain}% · ${fmt$(monthly)}/mo income</div>
+        </div>
+        <div class="proj-value">${fmt$(pt.total_value)}</div>
+      </div>`;
+    }).join('');
+
+    // Rate sliders
+    const priceVal = Math.round(s.usePrice * 1000) / 10;   // e.g. 0.105 → 10.5
+    const divVal   = Math.round(s.useDiv   * 1000) / 10;
+    const defPriceVal = Math.round(s.defPrice * 1000) / 10;
+    const defDivVal   = Math.round(s.defDiv   * 1000) / 10;
+    const priceIsOverridden = Math.abs(priceVal - defPriceVal) > 0.05;
+    const divIsOverridden   = Math.abs(divVal   - defDivVal)   > 0.05;
+    const sid = s.id;
+
+    const rateSliders = `
+      <div class="scenario-rate-ctrl">
+        <div class="scenario-rate-row">
+          <span class="scenario-rate-label price-label">📈 Price CAGR</span>
+          <input type="range" class="scenario-rate-slider price-slider"
+            min="-10" max="40" step="0.5" value="${priceVal}"
+            oninput="
+              const pv = parseFloat(this.value);
+              document.getElementById('price-disp-${sid}').textContent = pv.toFixed(1) + '%';
+              _scenarioOverrides['${sid}'].price = pv / 100;
+              clearTimeout(window._scenarioTimer);
+              window._scenarioTimer = setTimeout(() => reRenderProjection(), 250);
+            " />
+          <span class="scenario-rate-val${priceIsOverridden?' overridden':''}" id="price-disp-${sid}">${priceVal.toFixed(1)}%</span>
+          <button class="scenario-rate-reset" title="Reset to default"
+            onclick="_scenarioOverrides['${sid}'].price=null; reRenderProjection();">↺</button>
+        </div>
+        <div class="scenario-rate-row">
+          <span class="scenario-rate-label div-label">💰 Div Yield</span>
+          <input type="range" class="scenario-rate-slider div-slider"
+            min="0" max="50" step="0.5" value="${divVal}"
+            oninput="
+              const dv = parseFloat(this.value);
+              document.getElementById('div-disp-${sid}').textContent = dv.toFixed(1) + '%';
+              _scenarioOverrides['${sid}'].div = dv / 100;
+              clearTimeout(window._scenarioTimer);
+              window._scenarioTimer = setTimeout(() => reRenderProjection(), 250);
+            " />
+          <span class="scenario-rate-val${divIsOverridden?' overridden':''}" id="div-disp-${sid}">${divVal.toFixed(1)}%</span>
+          <button class="scenario-rate-reset" title="Reset to default"
+            onclick="_scenarioOverrides['${sid}'].div=null; reRenderProjection();">↺</button>
+        </div>
+        <div class="scenario-rate-default">Default: ${defPriceVal.toFixed(1)}% price · ${defDivVal.toFixed(1)}% div</div>
+      </div>`;
+
+    return `<div class="proj-scenario ${s.id}">
+      <div class="proj-scenario-label">${s.label}</div>
+      ${rateSliders}
+      ${milestoneHTML}
+    </div>`;
+  }).join('');
+
+  // Income projection at year 10 base
+  const y10base = computed[1].proj.yearlyData[10];
+  const y10bear = computed[0].proj.yearlyData[10];
+  const y10bull = computed[2].proj.yearlyData[10];
+  const annualInc10 = y10base.income_annual;
+
+  // DRIP description helper
+  const dripPctDisplay = Math.round(dripPct * 100);
+  const incomePctDisplay = 100 - dripPctDisplay;
+  const dripDescText = dripPctDisplay === 100 ? 'All dividends reinvested'
+    : dripPctDisplay === 0  ? 'All dividends taken as income'
+    : `${dripPctDisplay}% reinvested · ${incomePctDisplay}% taken as income`;
+
+  return `
+  <div class="proj-section">
+    <div class="proj-header">
+      <h3>🔮 Portfolio Value Projection — 5, 10 & 15 Years</h3>
+      <p>Based on historical price CAGR + dividend yield per ETF · Three scenarios shown</p>
+      <div class="drip-control">
+        <span class="drip-label">DRIP %</span>
+        <input type="range" class="drip-slider" id="dripSlider" min="0" max="100" step="5"
+          value="${dripPctDisplay}"
+          style="--drip-pct:${dripPctDisplay}%"
+          oninput="
+            this.style.setProperty('--drip-pct', this.value + '%');
+            document.getElementById('dripPctDisplay').textContent = this.value + '%';
+            const ip = 100 - parseInt(this.value);
+            document.getElementById('dripDescText').textContent =
+              this.value == 100 ? 'All dividends reinvested' :
+              this.value == 0   ? 'All dividends taken as income' :
+              this.value + '% reinvested · ' + ip + '% as income';
+            clearTimeout(window._dripTimer);
+            window._dripTimer = setTimeout(() => reRenderProjection(), 300);
+          " />
+        <span class="drip-pct-display" id="dripPctDisplay">${dripPctDisplay}%</span>
+        <span class="drip-desc" id="dripDescText">${dripDescText}</span>
+      </div>
+    </div>
+
+    <!-- Scenario columns -->
+    <div class="proj-scenarios">${scenarioHTML}</div>
+
+    <!-- Income summary at year 10 -->
+    <div class="proj-income-row">
+      <div class="proj-income-cell">
+        <div class="proj-income-label">Year 10 Annual Income (Base)</div>
+        <div class="proj-income-value">${fmt$(annualInc10)}</div>
+        <div class="proj-income-sub">${fmt$(annualInc10/12)}/month</div>
+      </div>
+      <div class="proj-income-cell">
+        <div class="proj-income-label">Year 10 Monthly (Bear)</div>
+        <div class="proj-income-value" style="color:#fc8181;">${fmt$(y10bear.income_annual/12)}</div>
+        <div class="proj-income-sub">Bear scenario</div>
+      </div>
+      <div class="proj-income-cell">
+        <div class="proj-income-label">Year 10 Monthly (Bull)</div>
+        <div class="proj-income-value">${fmt$(y10bull.income_annual/12)}</div>
+        <div class="proj-income-sub">Bull scenario</div>
+      </div>
+      <div class="proj-income-cell">
+        <div class="proj-income-label">Blended Portfolio Rate</div>
+        <div class="proj-income-value" style="color:#a0aec0;">${(base.wtdPriceCagr*100).toFixed(1)}% + ${(base.wtdDivYield*100).toFixed(1)}%</div>
+        <div class="proj-income-sub">Price CAGR + Div Yield</div>
+      </div>
+    </div>
+
+    <!-- Per-ETF breakdown -->
+    <div style="border-top:1px solid #2d3748;">
+      <div style="padding:12px 20px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#718096;">Per-ETF Projection Breakdown (Base · DRIP ${dripPctDisplay}%)</div>
+      <table class="proj-etf-table">
+        <thead><tr>
+          <th>ETF &amp; Data Basis</th><th>Weight</th><th>Invested</th>
+          <th>Price CAGR</th><th>Div Yield</th><th>Total Rate</th>
+          <th>1 Year</th><th>5 Years</th><th>10 Years</th><th>15 Years</th>
+        </tr></thead>
+        <tbody>${etfRows}</tbody>
+      </table>
+    </div>
+
+    <div class="proj-assumptions">
+      <strong>Methodology:</strong>
+      ETFs with ≥9yr history use their own 10-year price CAGR + average annual dividend yield.
+      Newer ETFs use their full available history; single-stock YieldMax ETFs use ETF history with conservative NAV decay assumptions.
+      ETFs &lt;3yr old use their underlying index's 10-year CAGR adjusted for covered call premium drag (~2–4%).
+      <span class="data-src-tag src-10y" style="margin:0 2px;">10YR</span> = 10yr ETF data &nbsp;
+      <span class="data-src-tag src-full" style="margin:0 2px;">NYR</span> = N years ETF data &nbsp;
+      <span class="data-src-tag src-bm" style="margin:0 2px;">MODEL</span> = index-based model.
+      <strong>Not financial advice. Past performance does not guarantee future results.</strong>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+function renderCharts(etfResults, totalDivAnnual) {
+  const colors = ['#4299e1','#68d391','#f6ad55','#fc8181','#9f7aea','#76e4f7','#fbb6ce','#c6f6d5','#fed7d7','#bee3f8','#fefcbf','#e9d8fd'];
+  const tickers = etfResults.map(r => r.ticker);
+
+  charts.alloc = new Chart(document.getElementById('allocChart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:tickers, datasets:[{ data:etfResults.map(r=>r.weight), backgroundColor:colors.slice(0,tickers.length), borderColor:'#1a1f2e', borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#a0aec0', font:{size:11}, boxWidth:12 } }, tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw}%` } } } }
+  });
+
+  charts.yield = new Chart(document.getElementById('yieldChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:tickers, datasets:[{ label:'Annual Yield %', data:etfResults.map(r=>(r.annualDivYield*100).toFixed(2)), backgroundColor:etfResults.map(r=>r.annualDivYield>0.5?'#fc8181':r.annualDivYield>0.15?'#f6ad55':'#68d391'), borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#718096'},grid:{color:'rgba(0,0,0,.07)'}}, y:{ticks:{color:'#718096',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.07)'}} } }
+  });
+
+  charts.return = new Chart(document.getElementById('returnChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:tickers, datasets:[
+      { label:'1Y Price Return', data:etfResults.map(r=>(r.oneYReturn*100).toFixed(2)), backgroundColor:etfResults.map(r=>r.oneYReturn>=0?'rgba(104,211,145,.7)':'rgba(252,129,129,.7)'), borderRadius:4 },
+      { label:'1Y Total Return', data:etfResults.map(r=>(r.totalReturn1Y*100).toFixed(2)), backgroundColor:etfResults.map(r=>r.totalReturn1Y>=0?'rgba(66,153,225,.7)':'rgba(252,129,129,.4)'), borderRadius:4 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{labels:{color:'#4a5568',font:{size:11}}}}, scales:{ x:{ticks:{color:'#718096'},grid:{color:'rgba(0,0,0,.07)'}}, y:{ticks:{color:'#718096',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.07)'}} } }
+  });
+
+  const months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+  charts.income = new Chart(document.getElementById('incomeChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:months, datasets:[{ label:'Monthly Income', data:months.map(()=>(totalDivAnnual/12).toFixed(2)), backgroundColor:'rgba(104,211,145,.6)', borderColor:'#68d391', borderWidth:1, borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#718096'},grid:{color:'rgba(0,0,0,.07)'}}, y:{ticks:{color:'#718096',callback:v=>'$'+Number(v).toLocaleString()},grid:{color:'rgba(0,0,0,.07)'}} } }
+  });
+
+  // Projection chart — year-by-year 0–15
+  const startValue = etfResults.reduce((a,r) => a + r.invested, 0);
+  const scenarios = [
+    { label:'Bear Case', adj:0.70, borderColor:'rgba(252,129,129,.8)',  bgColor:'rgba(252,129,129,.08)' },
+    { label:'Base Case', adj:1.00, borderColor:'rgba(99,179,237,.95)',  bgColor:'rgba(99,179,237,.12)'  },
+    { label:'Bull Case', adj:1.30, borderColor:'rgba(104,211,145,.9)',  bgColor:'rgba(104,211,145,.10)' },
+  ];
+  const projLabels = Array.from({length:16}, (_,i) => i === 0 ? 'Now' : `Yr ${i}`);
+  const projDatasets = scenarios.map(s => {
+    const proj = projectPortfolio(etfResults, startValue, 15, s.adj, true);
+    return {
+      label: s.label,
+      data: proj.yearlyData.map(p => parseFloat(p.total_value.toFixed(2))),
+      borderColor: s.borderColor,
+      backgroundColor: s.bgColor,
+      borderWidth: s.label === 'Base Case' ? 3 : 1.5,
+      pointRadius: p => [0,5,10,15].includes(p.dataIndex) ? 5 : 2,
+      fill: false,
+      tension: 0.4,
+    };
+  });
+
+  charts.proj = new Chart(document.getElementById('projChart').getContext('2d'), {
+    type:'line',
+    data:{ labels:projLabels, datasets:projDatasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#a0aec0', font:{size:12}, boxWidth:16 } },
+        tooltip:{
+          callbacks:{
+            label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.parsed.y)}`,
+            afterBody: (items) => {
+              const yr = items[0].dataIndex;
+              if (yr === 0) return [];
+              const base = scenarios[1];
+              const proj = projectPortfolio(etfResults, startValue, 15, base.adj, true);
+              const inc = proj.yearlyData[yr]?.income_annual || 0;
+              return [`Monthly income (base): ${fmt$(inc/12)}`];
+            }
+          }
+        },
+        annotation: {
+          annotations: {
+            yr5:  { type:'line', xMin:5,  xMax:5,  borderColor:'rgba(0,0,0,.1)', borderDash:[4,4] },
+            yr10: { type:'line', xMin:10, xMax:10, borderColor:'rgba(0,0,0,.1)', borderDash:[4,4] },
+            yr15: { type:'line', xMin:15, xMax:15, borderColor:'rgba(0,0,0,.1)', borderDash:[4,4] },
+          }
+        }
+      },
+      scales:{
+        x:{ ticks:{ color:'#718096' }, grid:{ color:'rgba(0,0,0,.06)' } },
+        y:{ ticks:{ color:'#718096', callback: v => '$'+Number(v).toLocaleString() }, grid:{ color:'rgba(0,0,0,.06)' } }
+      }
+    }
+  });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmt$(n) { return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtPct(n, d=2) { return (n*100).toFixed(d)+'%'; }
+function colorClass(n) { return n>=0?'pos':'neg'; }
+function arrow(n) { return n>=0?'▲':'▼'; }
+function getPortfolioSize() { return parseFloat(document.getElementById('portfolioSize').value.replace(/[$,]/g,'')) || 100000; }
+function setPortfolio(amt) {
+  document.getElementById('portfolioSize').value = '$'+amt.toLocaleString('en-US');
+  renderHoldings();
+}
+
+document.getElementById('portfolioSize').addEventListener('blur', function() {
+  const n = parseFloat(this.value.replace(/[$,]/g,'')) || 100000;
+  this.value = '$'+n.toLocaleString('en-US');
+  renderHoldings();
+});
+document.getElementById('portfolioSize').addEventListener('focus', function() {
+  this.value = this.value.replace(/[$,]/g,'');
+});
+
+// ============================================================
+// INIT
+// ============================================================
+checkServer();
+setInterval(checkServer, 15000); // re-check every 15s
+</script>
+</body>
+</html>
