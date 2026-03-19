@@ -12,7 +12,7 @@ import threading
 import webbrowser
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_q
+from urllib.parse import urlparse, parse_qs
 
 try:
     import yfinance as yf
@@ -66,25 +66,28 @@ def fetch_etf(ticker):
         total_div_1y = float(divs_1y.sum()) if len(divs_1y) > 0 else 0
         num_divs = len(divs_1y)
 
-            # Infer frequency using median interval between payments (handles newer ETFs
-            # that haven't completed a full year but already pay monthly).
-            all_divs = divs
-            if len(all_divs) >= 2:
-                            dates = sorted(all_divs.index)
-                            intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
-                            recent_intervals = intervals[-6:] if len(intervals) >= 6 else intervals
-                            median_interval = sorted(recent_intervals)[len(recent_intervals) // 2]
-                            if   median_interval <= 14:  freq = "weekly"
-                            elif median_interval <= 45:  freq = "monthly"
-                            elif median_interval <= 120: freq = "quarterly"
-                            else:                        freq = "irregular"
-            elif num_divs >= 1:
-                            if   num_divs >= 40: freq = "weekly"
-                            elif num_divs >= 10: freq = "monthly"
-                            elif num_divs >= 3:  freq = "quarterly"
-                            else:                freq = "irregular"
-            else:
-                            freq = "irregular"
+        # Infer frequency using median interval between payments (handles newer ETFs
+        # that haven't completed a full year but already pay monthly).
+        # Use all available dividend history (not just 1y) for better interval estimate.
+        all_divs = divs
+        if len(all_divs) >= 2:
+            dates = sorted(all_divs.index)
+            intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
+            # Use median of last 6 intervals (or all if fewer) to ignore outliers
+            recent_intervals = intervals[-6:] if len(intervals) >= 6 else intervals
+            median_interval = sorted(recent_intervals)[len(recent_intervals) // 2]
+            if   median_interval <= 14:  freq = "weekly"
+            elif median_interval <= 45:  freq = "monthly"
+            elif median_interval <= 120: freq = "quarterly"
+            else:                        freq = "irregular"
+        elif num_divs >= 1:
+            # Only one dividend ever — guess from count in last year
+            if   num_divs >= 40: freq = "weekly"
+            elif num_divs >= 10: freq = "monthly"
+            elif num_divs >= 3:  freq = "quarterly"
+            else:                freq = "irregular"
+        else:
+            freq = "irregular"
 
         # Yield: prefer info field, fall back to trailing calc
         raw_yield = info.get('yield') or info.get('trailingAnnualDividendYield') or 0
