@@ -213,6 +213,8 @@
 
   .no-holdings { text-align:center; color:#a0aec0; font-size:13px; padding:20px; }
   .data-footer { text-align:center; padding:16px; font-size:11px; color:#a0aec0; }
+  .fin-disclaimer { margin:24px 0 8px; padding:12px 18px; background:#fffbeb; border:1px solid #f6e05e; border-radius:10px; font-size:11px; color:#744210; text-align:center; line-height:1.6; }
+  .fin-disclaimer strong { color:#92400e; }
 
   ::-webkit-scrollbar { width:6px; }
   ::-webkit-scrollbar-track { background:#f0f4f8; }
@@ -455,6 +457,10 @@
   </div>
   <!-- Comparison Results -->
   <div id="compareResultsArea" style="display:none;margin-top:20px;"></div>
+  <div class="fin-disclaimer">
+    ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. This simulator is for educational purposes only.
+    Tax laws vary by state/country. Past performance does not guarantee future results. Always consult a qualified financial or tax professional before making investment decisions.
+  </div>
 </div><!-- end tab-compare -->
 
 <!-- TAB: TAX IMPACT -->
@@ -522,6 +528,10 @@
         </div>
       </div>
     </div>
+  </div>
+  <div class="fin-disclaimer" style="margin-top:20px;">
+    ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. This simulator is for educational purposes only.
+    Tax laws vary by state/country. Consult a qualified tax professional for accurate advice specific to your situation.
   </div>
 </div><!-- end tab-tax -->
 
@@ -1247,6 +1257,10 @@ function renderResults(etfResults, portfolioSize, portfolioAllocated, totalDivAn
         ? `⚡ Live data from Yahoo Finance via ${API} · ${liveCount}/${etfResults.length} ETFs refreshed`
         : `📦 Offline mode · built-in data as of March 2, 2026 · run cc_simulator_server.py for live quotes`}
       &nbsp;·&nbsp; Past performance does not guarantee future results
+    </div>
+    <div class="fin-disclaimer">
+      ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. This simulator is for educational purposes only.
+      Tax laws vary by state/country. Past performance does not guarantee future results. Always consult a qualified financial or tax professional before making investment decisions.
     </div>
   `;
 
