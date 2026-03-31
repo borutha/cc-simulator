@@ -3,8 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Covered Call ETF Portfolio Simulator — Live</title>
+<title>ETFs Portfolio Simulator v1.2 – JEPI, QYLD, XYLD & More</title>
+<meta name="description" content="Free ETF portfolio simulator. Model JEPI, QYLD, XYLD and other income ETFs with 15-year projections, dividend income estimates, tax impact analysis, DRIP, and NAV erosion tracking.">
+<meta name="keywords" content="ETF portfolio simulator, covered call ETF, JEPI calculator, QYLD simulator, XYLD portfolio, dividend income calculator, ETF portfolio builder, tax impact ETF, DRIP calculator">
+<meta name="author" content="CC Simulator">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph / Social Sharing -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="ETFs Portfolio Simulator v1.2 – JEPI, QYLD, XYLD & More">
+<meta property="og:description" content="Free tool to model covered call ETF portfolios. 15-year projections, dividend income, DRIP analysis and more.">
+<meta property="og:url" content="https://etf-simulator.netlify.app/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ETFs Portfolio Simulator v1.2">
+<meta name="twitter:description" content="Free tool to model JEPI, QYLD, XYLD and other ETF portfolios — 15-year projections, tax impact, portfolio comparison.">
+
+<!-- Google AdSense: replace ca-pub-XXXXXXXXXXXXXXXX with your Publisher ID after approval -->
+<!-- STEP 1: Apply at https://adsense.google.com using this site URL -->
+<!-- STEP 2: Once approved, uncomment the line below and replace the publisher ID -->
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
@@ -198,6 +217,76 @@
   ::-webkit-scrollbar { width:6px; }
   ::-webkit-scrollbar-track { background:#f0f4f8; }
   ::-webkit-scrollbar-thumb { background:#cbd5e0; border-radius:3px; }
+
+  /* ---- v1.2 NAV TABS ---- */
+  .main-tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; background:#f7fafc; padding:0 24px; }
+  .main-tab { padding:12px 20px; font-size:13px; font-weight:600; color:#718096; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; white-space:nowrap; }
+  .main-tab:hover { color:#2b6cb0; }
+  .main-tab.active { color:#2b6cb0; border-bottom-color:#2b6cb0; background:#fff; }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ---- v1.2 TAX IMPACT ---- */
+  .tax-panel { padding:24px; }
+  .tax-grid { display:grid; grid-template-columns:340px 1fr; gap:24px; }
+  .tax-settings { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; }
+  .tax-settings h3 { font-size:14px; font-weight:700; color:#1a202c; margin-bottom:16px; }
+  .tax-row { margin-bottom:14px; }
+  .tax-label { font-size:12px; color:#718096; margin-bottom:5px; display:block; }
+  .tax-select, .tax-input { width:100%; background:#fff; border:1px solid #cbd5e0; border-radius:8px; padding:9px 12px; font-size:13px; color:#1a202c; outline:none; }
+  .tax-select:focus, .tax-input:focus { border-color:#4299e1; }
+  .tax-bracket-display { background:#ebf8ff; border:1px solid #bee3f8; border-radius:8px; padding:10px 14px; margin-top:12px; font-size:12px; }
+  .tax-bracket-rate { font-size:22px; font-weight:700; color:#2b6cb0; }
+  .tax-results { display:flex; flex-direction:column; gap:16px; }
+  .tax-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+  .tax-card-header { padding:12px 18px; background:#f7fafc; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:600; color:#2d3748; }
+  .tax-card-body { padding:16px 18px; }
+  .tax-summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
+  .tax-summary-item { text-align:center; background:#f7fafc; border-radius:8px; padding:12px 8px; }
+  .tax-summary-value { font-size:20px; font-weight:700; color:#1a202c; }
+  .tax-summary-label { font-size:10px; color:#718096; text-transform:uppercase; letter-spacing:.5px; margin-top:3px; }
+  .tax-after { color:#276749 !important; }
+  .tax-owed  { color:#c53030 !important; }
+  .tax-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .tax-table th { padding:8px 12px; background:#f7fafc; color:#718096; font-size:10px; text-transform:uppercase; letter-spacing:.5px; text-align:right; border-bottom:1px solid #e2e8f0; }
+  .tax-table th:first-child { text-align:left; }
+  .tax-table td { padding:9px 12px; border-bottom:1px solid #f0f4f8; text-align:right; color:#2d3748; }
+  .tax-table td:first-child { text-align:left; }
+  .tax-table tr:last-child td { border-bottom:none; font-weight:700; background:#f7fafc; }
+  .tax-calc-btn { width:100%; background:linear-gradient(135deg,#276749,#2f855a); border:none; border-radius:8px; padding:11px; color:#fff; font-size:13px; font-weight:700; cursor:pointer; margin-top:12px; transition:all .2s; }
+  .tax-calc-btn:hover { opacity:.9; transform:translateY(-1px); }
+
+  /* ---- v1.2 COMPARE TAB ---- */
+  .compare-panel { padding:24px; }
+  .compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .compare-portfolio { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+  .compare-portfolio-header { padding:14px 18px; background:linear-gradient(135deg,#2b6cb0,#1a365d); color:#fff; display:flex; align-items:center; justify-content:space-between; }
+  .compare-portfolio-header.b { background:linear-gradient(135deg,#276749,#1c4532); }
+  .compare-portfolio-label { font-size:14px; font-weight:700; }
+  .compare-portfolio-body { padding:16px; }
+  .compare-name-input { width:100%; background:#f7fafc; border:1px solid #e2e8f0; border-radius:6px; padding:5px 10px; font-size:12px; color:#2d3748; outline:none; max-width:160px; }
+  .compare-results { background:#fff; border:1px solid #e2e8f0; border-radius:12px; margin-top:20px; overflow:hidden; }
+  .compare-results-header { padding:14px 20px; background:#f7fafc; border-bottom:1px solid #e2e8f0; font-size:14px; font-weight:700; color:#1a202c; }
+  .compare-metric-grid { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid #e2e8f0; }
+  .compare-metric { padding:14px; text-align:center; border-right:1px solid #e2e8f0; }
+  .compare-metric:last-child { border-right:none; }
+  .compare-metric-label { font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#718096; margin-bottom:6px; }
+  .compare-metric-a { font-size:16px; font-weight:700; color:#2b6cb0; }
+  .compare-metric-b { font-size:16px; font-weight:700; color:#276749; }
+  .compare-metric-diff { font-size:11px; color:#a0aec0; margin-top:3px; }
+  .compare-run-btn { width:100%; background:linear-gradient(135deg,#553c9a,#44337a); border:none; border-radius:8px; padding:11px; color:#fff; font-size:13px; font-weight:700; cursor:pointer; margin-top:16px; transition:all .2s; }
+  .compare-run-btn:hover { opacity:.9; transform:translateY(-1px); }
+  .compare-winner { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; }
+  .winner-a { background:#ebf8ff; color:#2b6cb0; border:1px solid #bee3f8; }
+  .winner-b { background:#f0fff4; color:#276749; border:1px solid #c6f6d5; }
+  .winner-tie { background:#f7fafc; color:#718096; border:1px solid #e2e8f0; }
+
+  /* ---- v1.2 SNAPSHOT BUTTON ---- */
+  .snapshot-btn { background:linear-gradient(135deg,#d69e2e,#b7791f); border:none; border-radius:8px; padding:8px 16px; color:#fff; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all .2s; }
+  .snapshot-btn:hover { opacity:.9; transform:translateY(-1px); }
+  .snapshot-toast { position:fixed; bottom:24px; right:24px; background:#1a202c; color:#fff; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; z-index:9999; opacity:0; transform:translateY(10px); transition:all .3s; pointer-events:none; }
+  .snapshot-toast.show { opacity:1; transform:translateY(0); }
+  .version-badge { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; color:#fff; margin-left:8px; }
 </style>
 </head>
 <body>
@@ -205,15 +294,26 @@
 <div class="header">
   <div class="header-icon">📊</div>
   <div>
-    <h1>Covered Call ETF Portfolio Simulator</h1>
-    <p>Live Yahoo Finance data · Real-time search · NAV erosion · Total return</p>
+    <h1>ETFs Portfolio Simulator <span class="version-badge">v1.2</span></h1>
+    <p>Live Yahoo Finance data · Tax Impact · Portfolio Comparison · Snapshot Export</p>
   </div>
   <div class="badges">
+    <button class="snapshot-btn" onclick="saveSnapshot()" id="snapshotBtn" style="display:none;">📸 Save Snapshot</button>
     <div class="badge" id="serverBadge" style="display:none;"></div>
     <div class="badge badge-live"><div class="live-dot"></div>YAHOO FINANCE</div>
   </div>
 </div>
+<div id="snapshotToast" class="snapshot-toast">📸 Snapshot saved!</div>
 
+<!-- MAIN NAVIGATION TABS -->
+<div class="main-tabs">
+  <div class="main-tab active" onclick="switchTab('simulator')">📊 Simulator</div>
+  <div class="main-tab" onclick="switchTab('compare')">⚖️ Compare Portfolios</div>
+  <div class="main-tab" onclick="switchTab('tax')">🧾 Tax Impact</div>
+</div>
+
+<!-- TAB: SIMULATOR -->
+<div id="tab-simulator" class="tab-panel active">
 <div class="main">
   <!-- LEFT PANEL -->
   <div class="left-panel">
@@ -292,6 +392,138 @@
     <div id="resultsPanel" style="display:none;"></div>
   </div>
 </div>
+</div><!-- end tab-simulator -->
+
+<!-- TAB: COMPARE PORTFOLIOS -->
+<div id="tab-compare" class="tab-panel compare-panel">
+  <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <h2 style="font-size:18px;font-weight:700;color:#1a202c;">⚖️ Compare Two Portfolios</h2>
+      <p style="font-size:12px;color:#718096;margin-top:3px;">Build two portfolios and compare their income, returns, and projections side by side.</p>
+    </div>
+    <button class="compare-run-btn" style="width:auto;padding:10px 24px;" onclick="runComparison()">▶ Run Comparison</button>
+  </div>
+  <div class="compare-grid">
+    <!-- Portfolio A -->
+    <div class="compare-portfolio" id="comparePortA">
+      <div class="compare-portfolio-header">
+        <div class="compare-portfolio-label">Portfolio A</div>
+        <input type="text" class="compare-name-input" id="compNameA" value="My Portfolio A" />
+      </div>
+      <div class="compare-portfolio-body">
+        <div class="portfolio-card" style="margin-bottom:12px;">
+          <label style="font-size:12px;color:#718096;margin-bottom:6px;display:block;">Investment Amount (USD)</label>
+          <input type="text" class="portfolio-input" id="compSizeA" value="$100,000" style="font-size:15px;" />
+        </div>
+        <div class="section-title">Add ETFs</div>
+        <div class="search-wrapper" style="margin-bottom:8px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="compSearchA" placeholder="Search ticker…" autocomplete="off" />
+          <div class="search-dropdown" id="compDropdownA"></div>
+        </div>
+        <div id="compHoldingsA" style="font-size:12px;color:#a0aec0;padding:8px 0;">No ETFs added yet</div>
+        <div id="compAllocBarA" style="margin-top:8px;display:none;">
+          <div class="alloc-bar-track"><div class="alloc-bar-fill" id="compBarFillA" style="width:0%;background:#4299e1;"></div></div>
+          <div style="font-size:11px;color:#718096;margin-top:3px;" id="compAllocTextA"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Portfolio B -->
+    <div class="compare-portfolio" id="comparePortB">
+      <div class="compare-portfolio-header b">
+        <div class="compare-portfolio-label">Portfolio B</div>
+        <input type="text" class="compare-name-input" id="compNameB" value="My Portfolio B" />
+      </div>
+      <div class="compare-portfolio-body">
+        <div class="portfolio-card" style="margin-bottom:12px;">
+          <label style="font-size:12px;color:#718096;margin-bottom:6px;display:block;">Investment Amount (USD)</label>
+          <input type="text" class="portfolio-input" id="compSizeB" value="$100,000" style="font-size:15px;" />
+        </div>
+        <div class="section-title">Add ETFs</div>
+        <div class="search-wrapper" style="margin-bottom:8px;">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="compSearchB" placeholder="Search ticker…" autocomplete="off" />
+          <div class="search-dropdown" id="compDropdownB"></div>
+        </div>
+        <div id="compHoldingsB" style="font-size:12px;color:#a0aec0;padding:8px 0;">No ETFs added yet</div>
+        <div id="compAllocBarB" style="margin-top:8px;display:none;">
+          <div class="alloc-bar-track"><div class="alloc-bar-fill" id="compBarFillB" style="width:0%;background:#48bb78;"></div></div>
+          <div style="font-size:11px;color:#718096;margin-top:3px;" id="compAllocTextB"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Comparison Results -->
+  <div id="compareResultsArea" style="display:none;margin-top:20px;"></div>
+</div><!-- end tab-compare -->
+
+<!-- TAB: TAX IMPACT -->
+<div id="tab-tax" class="tab-panel tax-panel">
+  <div style="margin-bottom:20px;">
+    <h2 style="font-size:18px;font-weight:700;color:#1a202c;">🧾 Tax Impact Estimator</h2>
+    <p style="font-size:12px;color:#718096;margin-top:3px;">Estimate your after-tax dividend income based on your tax situation. Uses your current Simulator portfolio.</p>
+  </div>
+  <div class="tax-grid">
+    <!-- Settings -->
+    <div>
+      <div class="tax-settings">
+        <h3>Your Tax Settings</h3>
+        <div class="tax-row">
+          <label class="tax-label">Filing Status</label>
+          <select class="tax-select" id="taxFilingStatus" onchange="updateTaxBracket()">
+            <option value="single">Single</option>
+            <option value="married" selected>Married Filing Jointly</option>
+            <option value="hoh">Head of Household</option>
+          </select>
+        </div>
+        <div class="tax-row">
+          <label class="tax-label">Annual Ordinary Income (before dividends)</label>
+          <input type="text" class="tax-input" id="taxIncome" value="$120,000" onblur="formatTaxIncome()" onchange="updateTaxBracket()" />
+        </div>
+        <div class="tax-row">
+          <label class="tax-label">State Income Tax Rate</label>
+          <select class="tax-select" id="taxStateRate" onchange="updateTaxBracket()">
+            <option value="0">0% — No state tax (TX, FL, WA, etc.)</option>
+            <option value="0.03">3% — Low (e.g. PA flat rate)</option>
+            <option value="0.05" selected>5% — Medium (e.g. GA, VA)</option>
+            <option value="0.07">7% — High (e.g. SC, WI)</option>
+            <option value="0.093">9.3% — California (mid bracket)</option>
+            <option value="0.133">13.3% — California (top bracket)</option>
+            <option value="0.109">10.9% — New York (top bracket)</option>
+          </select>
+        </div>
+        <div class="tax-row">
+          <label class="tax-label">Account Type</label>
+          <select class="tax-select" id="taxAccountType" onchange="updateTaxBracket()">
+            <option value="taxable">Taxable Brokerage</option>
+            <option value="ira">Traditional IRA / 401(k) (deferred)</option>
+            <option value="roth">Roth IRA (tax-free)</option>
+          </select>
+        </div>
+        <div class="tax-bracket-display" id="taxBracketDisplay">
+          <div style="font-size:11px;color:#2b6cb0;margin-bottom:4px;">ESTIMATED TAX RATE ON DIVIDENDS</div>
+          <span class="tax-bracket-rate" id="taxEffectiveRate">—</span>
+          <span style="font-size:12px;color:#4a5568;margin-left:6px;">effective rate</span>
+          <div style="font-size:11px;color:#718096;margin-top:4px;" id="taxBracketDetail"></div>
+        </div>
+        <button class="tax-calc-btn" onclick="calculateTaxImpact()">🧮 Calculate Tax Impact</button>
+      </div>
+      <div style="margin-top:14px;background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;padding:12px 14px;font-size:11px;color:#744210;line-height:1.6;">
+        ⚠️ <strong>Disclaimer:</strong> This is an estimate only. Covered call ETF distributions may be classified as ordinary income, qualified dividends, or return of capital — the tax treatment varies by ETF and year. Consult a tax professional for accurate advice.
+      </div>
+    </div>
+    <!-- Results -->
+    <div class="tax-results" id="taxResultsArea">
+      <div style="display:flex;align-items:center;justify-content:center;height:200px;color:#a0aec0;font-size:13px;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:12px;">
+        <div>
+          <div style="font-size:36px;margin-bottom:8px;">🧾</div>
+          <div>Configure your tax settings and click<br><strong>Calculate Tax Impact</strong></div>
+          <div style="margin-top:8px;font-size:12px;">Make sure you have a portfolio built in the Simulator tab first.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- end tab-tax -->
 
 <script>
 // ============================================================
@@ -1466,6 +1698,531 @@ document.getElementById('portfolioSize').addEventListener('focus', function() {
 // ============================================================
 checkServer();
 setInterval(checkServer, 15000); // re-check every 15s
+
+// ============================================================
+// v1.2 — TAB SWITCHING
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  // highlight the clicked tab button
+  document.querySelectorAll('.main-tab').forEach(t => {
+    if (t.textContent.toLowerCase().includes(
+      name === 'simulator' ? 'simulator' : name === 'compare' ? 'compare' : 'tax'
+    )) t.classList.add('active');
+  });
+}
+
+// ============================================================
+// v1.2 — SNAPSHOT (Save as PNG)
+// ============================================================
+function saveSnapshot() {
+  const panel = document.getElementById('resultsPanel');
+  if (!panel || panel.style.display === 'none') {
+    showToast('⚠️ Please calculate a portfolio first');
+    return;
+  }
+  showToast('📸 Generating snapshot…');
+  html2canvas(panel, { backgroundColor: '#f0f4f8', scale: 1.5, useCORS: true }).then(canvas => {
+    const link = document.createElement('a');
+    const name = document.getElementById('compNameA')?.value || 'portfolio';
+    const date = new Date().toISOString().slice(0,10);
+    link.download = `cc-portfolio-snapshot-${date}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ Snapshot downloaded!');
+  }).catch(() => showToast('⚠️ Snapshot failed — try again'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('snapshotToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Show snapshot button once results are shown (hook via MutationObserver)
+new MutationObserver(() => {
+  const rp = document.getElementById('resultsPanel');
+  if (rp && rp.style.display !== 'none' && rp.innerHTML.length > 100) {
+    document.getElementById('snapshotBtn').style.display = 'flex';
+  }
+}).observe(document.getElementById('resultsPanel'), { childList: true, subtree: false, attributes: true, attributeFilter: ['style'] });
+
+// ============================================================
+// v1.2 — COMPARE PORTFOLIOS
+// ============================================================
+let compHoldingsA = {}, compHoldingsB = {};
+
+function initCompareSearch(side) {
+  const inputId = side === 'A' ? 'compSearchA' : 'compSearchB';
+  const dropId  = side === 'A' ? 'compDropdownA' : 'compDropdownB';
+  const input = document.getElementById(inputId);
+  let timer = null;
+
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    const dd = document.getElementById(dropId);
+    if (!q) { dd.style.display = 'none'; return; }
+
+    const matches = QUICK_SUGGESTIONS.filter(s =>
+      s.ticker.toLowerCase().includes(q.toLowerCase()) ||
+      s.name.toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 8);
+
+    if (matches.length > 0) {
+      dd.innerHTML = matches.map(s => `
+        <div class="sri" onclick="addCompETF('${side}','${s.ticker}')">
+          <div>
+            <div class="sri-ticker">${s.ticker}</div>
+            <div class="sri-name">${s.name}</div>
+          </div>
+          <div class="sri-yield">${ETF_DATA[s.ticker]?.yield_annual ? (ETF_DATA[s.ticker].yield_annual*100).toFixed(1)+'%' : ''}</div>
+        </div>`).join('');
+      dd.style.display = 'block';
+    } else {
+      dd.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#comp' + 'Search' + side) && !e.target.closest('#comp' + 'Dropdown' + side)) {
+      document.getElementById(dropId).style.display = 'none';
+    }
+  });
+}
+
+async function addCompETF(side, ticker) {
+  ticker = ticker.toUpperCase();
+  document.getElementById('compDropdown' + side).style.display = 'none';
+  document.getElementById('compSearch' + side).value = '';
+
+  const holdings = side === 'A' ? compHoldingsA : compHoldingsB;
+  if (holdings[ticker]) return;
+  holdings[ticker] = 0;
+
+  const data = await ensureData(ticker);
+  if (!data) { delete holdings[ticker]; return; }
+
+  const tickers = Object.keys(holdings);
+  const even = Math.round(100 / tickers.length);
+  tickers.forEach((t, i) => { holdings[t] = i === tickers.length - 1 ? 100 - even * (tickers.length - 1) : even; });
+
+  renderCompHoldings(side);
+}
+
+function removeCompETF(side, ticker) {
+  const holdings = side === 'A' ? compHoldingsA : compHoldingsB;
+  delete holdings[ticker];
+  renderCompHoldings(side);
+}
+
+function renderCompHoldings(side) {
+  const holdings = side === 'A' ? compHoldingsA : compHoldingsB;
+  const container = document.getElementById('compHoldings' + side);
+  const tickers = Object.keys(holdings);
+
+  if (tickers.length === 0) {
+    container.innerHTML = '<div style="font-size:12px;color:#a0aec0;padding:8px 0;">No ETFs added yet</div>';
+    document.getElementById('compAllocBar' + side).style.display = 'none';
+    return;
+  }
+
+  container.innerHTML = tickers.map(t => {
+    const d = ETF_DATA[t];
+    const pct = holdings[t];
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+      <span style="font-weight:700;font-size:12px;color:#2b6cb0;min-width:44px;">${t}</span>
+      <input type="range" style="flex:1;height:4px;" min="0" max="100" value="${pct}"
+        oninput="updateCompAlloc('${side}','${t}',this.value)" />
+      <input type="number" style="width:46px;border:1px solid #cbd5e0;border-radius:5px;padding:3px 5px;font-size:12px;text-align:center;" min="0" max="100" value="${pct}"
+        onchange="updateCompAlloc('${side}','${t}',this.value)" />
+      <span style="font-size:11px;color:#718096;">%</span>
+      <button onclick="removeCompETF('${side}','${t}')" style="background:none;border:none;color:#cbd5e0;cursor:pointer;font-size:13px;" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+
+  document.getElementById('compAllocBar' + side).style.display = 'block';
+  updateCompAllocBar(side);
+}
+
+function updateCompAlloc(side, ticker, val) {
+  val = Math.max(0, Math.min(100, parseInt(val) || 0));
+  const holdings = side === 'A' ? compHoldingsA : compHoldingsB;
+  holdings[ticker] = val;
+  renderCompHoldings(side);
+}
+
+function updateCompAllocBar(side) {
+  const holdings = side === 'A' ? compHoldingsA : compHoldingsB;
+  const total = Object.values(holdings).reduce((a,b) => a+b, 0);
+  const fill = document.getElementById('compBarFill' + side);
+  const text = document.getElementById('compAllocText' + side);
+  fill.style.width = Math.min(total, 100) + '%';
+  fill.style.background = total === 100 ? '#38a169' : total > 100 ? '#e53e3e' : '#d69e2e';
+  text.textContent = total === 100 ? '✓ 100% allocated' : total > 100 ? `⚠ Over by ${total-100}%` : `⚠ ${100-total}% unallocated`;
+}
+
+async function runComparison() {
+  const tickersA = Object.keys(compHoldingsA);
+  const tickersB = Object.keys(compHoldingsB);
+  if (tickersA.length === 0 || tickersB.length === 0) {
+    alert('Please add ETFs to both Portfolio A and Portfolio B.');
+    return;
+  }
+
+  // Ensure data for all tickers
+  if (serverOnline) {
+    await Promise.all([...tickersA, ...tickersB].map(t => ensureData(t)));
+  }
+
+  const nameA = document.getElementById('compNameA').value || 'Portfolio A';
+  const nameB = document.getElementById('compNameB').value || 'Portfolio B';
+  const sizeA = parseFloat(document.getElementById('compSizeA').value.replace(/[$,]/g,'')) || 100000;
+  const sizeB = parseFloat(document.getElementById('compSizeB').value.replace(/[$,]/g,'')) || 100000;
+
+  function buildResults(holdings, portfolioSize) {
+    let wtdYield=0, totalDiv=0, weighted1Y=0, totalReturn1Y=0;
+    const results = [];
+    const totalAlloc = Object.values(holdings).reduce((a,b) => a+b, 0);
+    Object.entries(holdings).forEach(([t, w]) => {
+      const d = ETF_DATA[t];
+      if (!d) return;
+      const weight = w / 100;
+      const invested = portfolioSize * weight;
+      const shares = invested / d.price;
+      const oneYReturn = (d.price - d.one_y_start) / d.one_y_start;
+      const annualDivYield = d.total_div_1y / d.price;
+      const annualDivIncome = shares * d.total_div_1y;
+      const tr = oneYReturn + (d.total_div_1y / d.one_y_start);
+      wtdYield += annualDivYield * weight;
+      totalDiv += annualDivIncome;
+      weighted1Y += oneYReturn * weight;
+      results.push({ ticker:t, weight:w, data:d, invested, shares, annualDivYield, annualDivIncome, oneYReturn, totalReturn1Y:tr });
+    });
+    totalReturn1Y = weighted1Y + (totalDiv / portfolioSize);
+    return { results, wtdYield, totalDiv, weighted1Y, totalReturn1Y };
+  }
+
+  const A = buildResults(compHoldingsA, sizeA);
+  const B = buildResults(compHoldingsB, sizeB);
+
+  // Build ETF result arrays for projection
+  const etfResA = A.results.map(r => ({ ticker: r.ticker, weight: r.weight, invested: r.invested, data: r.data, source: ETF_SOURCE[r.ticker] || 'cache' }));
+  const etfResB = B.results.map(r => ({ ticker: r.ticker, weight: r.weight, invested: r.invested, data: r.data, source: ETF_SOURCE[r.ticker] || 'cache' }));
+
+  const projA = projectPortfolio(etfResA, sizeA, 10, 1.0, true);
+  const projB = projectPortfolio(etfResB, sizeB, 10, 1.0, true);
+
+  function winner(a, b, higherIsBetter=true) {
+    const diff = higherIsBetter ? a - b : b - a;
+    if (Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 0.0001) < 0.005) return '<span class="compare-winner winner-tie">TIE</span>';
+    return diff > 0
+      ? `<span class="compare-winner winner-a">▲ ${nameA}</span>`
+      : `<span class="compare-winner winner-b">▲ ${nameB}</span>`;
+  }
+
+  const y10A = projA.yearlyData[10];
+  const y10B = projB.yearlyData[10];
+
+  const metrics = [
+    { label:'Annual Income', a: A.totalDiv, b: B.totalDiv, fmt: fmt$, higherBetter: true },
+    { label:'Blended Yield', a: A.wtdYield, b: B.wtdYield, fmt: v => fmtPct(v), higherBetter: true },
+    { label:'1Y Total Return', a: A.totalReturn1Y, b: B.totalReturn1Y, fmt: v => fmtPct(v), higherBetter: true },
+    { label:'10Y Value (Base)', a: y10A.total_value, b: y10B.total_value, fmt: fmt$, higherBetter: true },
+    { label:'Monthly Income', a: A.totalDiv/12, b: B.totalDiv/12, fmt: fmt$, higherBetter: true },
+    { label:'Daily Income', a: A.totalDiv/365, b: B.totalDiv/365, fmt: fmt$, higherBetter: true },
+    { label:'10Y Monthly Income', a: y10A.income_annual/12, b: y10B.income_annual/12, fmt: fmt$, higherBetter: true },
+    { label:'Price Return (1Y)', a: A.weighted1Y, b: B.weighted1Y, fmt: v => fmtPct(v), higherBetter: true },
+  ];
+
+  const holdingTableA = A.results.map(r => `
+    <tr>
+      <td><span class="tkbadge">${r.ticker}</span></td>
+      <td><span class="wbadge">${r.weight}%</span></td>
+      <td class="pos">${fmtPct(r.annualDivYield)}</td>
+      <td class="pos">${fmt$(r.annualDivIncome)}</td>
+      <td class="${colorClass(r.oneYReturn)}">${arrow(r.oneYReturn)} ${fmtPct(Math.abs(r.oneYReturn))}</td>
+    </tr>`).join('');
+  const holdingTableB = B.results.map(r => `
+    <tr>
+      <td><span class="tkbadge">${r.ticker}</span></td>
+      <td><span class="wbadge">${r.weight}%</span></td>
+      <td class="pos">${fmtPct(r.annualDivYield)}</td>
+      <td class="pos">${fmt$(r.annualDivIncome)}</td>
+      <td class="${colorClass(r.oneYReturn)}">${arrow(r.oneYReturn)} ${fmtPct(Math.abs(r.oneYReturn))}</td>
+    </tr>`).join('');
+
+  document.getElementById('compareResultsArea').style.display = 'block';
+  document.getElementById('compareResultsArea').innerHTML = `
+    <div class="compare-results">
+      <div class="compare-results-header">📊 Head-to-Head Comparison — ${nameA} vs ${nameB}</div>
+      <div class="compare-metric-grid">
+        ${metrics.slice(0,4).map(m => `
+          <div class="compare-metric">
+            <div class="compare-metric-label">${m.label}</div>
+            <div class="compare-metric-a">${m.fmt(m.a)}</div>
+            <div style="font-size:10px;color:#a0aec0;margin:2px 0;">vs</div>
+            <div class="compare-metric-b">${m.fmt(m.b)}</div>
+            <div class="compare-metric-diff">${winner(m.a, m.b, m.higherBetter)}</div>
+          </div>`).join('')}
+      </div>
+      <div class="compare-metric-grid">
+        ${metrics.slice(4).map(m => `
+          <div class="compare-metric">
+            <div class="compare-metric-label">${m.label}</div>
+            <div class="compare-metric-a">${m.fmt(m.a)}</div>
+            <div style="font-size:10px;color:#a0aec0;margin:2px 0;">vs</div>
+            <div class="compare-metric-b">${m.fmt(m.b)}</div>
+            <div class="compare-metric-diff">${winner(m.a, m.b, m.higherBetter)}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Holdings detail -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+      <div class="results-section">
+        <div class="rs-header" style="background:linear-gradient(90deg,#ebf8ff,#f7fafc);">
+          <h3 style="color:#2b6cb0;">📋 ${nameA} — ${fmt$(sizeA)}</h3>
+          <span>${fmtPct(A.wtdYield)} yield · ${fmt$(A.totalDiv)}/yr</span>
+        </div>
+        <table><thead><tr><th>ETF</th><th>Weight</th><th>Yield</th><th>Annual Inc.</th><th>1Y Return</th></tr></thead>
+        <tbody>${holdingTableA}</tbody>
+        </table>
+      </div>
+      <div class="results-section">
+        <div class="rs-header" style="background:linear-gradient(90deg,#f0fff4,#f7fafc);">
+          <h3 style="color:#276749;">📋 ${nameB} — ${fmt$(sizeB)}</h3>
+          <span>${fmtPct(B.wtdYield)} yield · ${fmt$(B.totalDiv)}/yr</span>
+        </div>
+        <table><thead><tr><th>ETF</th><th>Weight</th><th>Yield</th><th>Annual Inc.</th><th>1Y Return</th></tr></thead>
+        <tbody>${holdingTableB}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// Init compare search on load
+initCompareSearch('A');
+initCompareSearch('B');
+
+// ============================================================
+// v1.2 — TAX IMPACT ESTIMATOR
+// ============================================================
+// 2025 Federal Tax Brackets (ordinary income)
+const TAX_BRACKETS = {
+  single: [
+    [11600,  0.10], [47150, 0.12], [100525, 0.22],
+    [191950, 0.24], [243725, 0.32], [609350, 0.35], [Infinity, 0.37]
+  ],
+  married: [
+    [23200, 0.10], [94300, 0.12], [201050, 0.22],
+    [383900, 0.24], [487450, 0.32], [731200, 0.35], [Infinity, 0.37]
+  ],
+  hoh: [
+    [16550, 0.10], [63100, 0.12], [100500, 0.22],
+    [191950, 0.24], [243700, 0.32], [609350, 0.35], [Infinity, 0.37]
+  ]
+};
+
+// Qualified dividend rates (2025)
+const QDIV_BRACKETS = {
+  single:  [[47025, 0], [518900, 0.15], [Infinity, 0.20]],
+  married: [[94050, 0], [583750, 0.15], [Infinity, 0.20]],
+  hoh:     [[63000, 0], [551350, 0.15], [Infinity, 0.20]]
+};
+
+function getMarginalRate(income, filing) {
+  const brackets = TAX_BRACKETS[filing];
+  let prev = 0;
+  for (const [limit, rate] of brackets) {
+    if (income <= limit) return rate;
+    prev = limit;
+  }
+  return 0.37;
+}
+
+function getQDivRate(income, filing) {
+  const brackets = QDIV_BRACKETS[filing];
+  for (const [limit, rate] of brackets) {
+    if (income <= limit) return rate;
+  }
+  return 0.20;
+}
+
+function formatTaxIncome() {
+  const input = document.getElementById('taxIncome');
+  const n = parseFloat(input.value.replace(/[$,]/g,'')) || 0;
+  input.value = '$' + n.toLocaleString('en-US');
+  updateTaxBracket();
+}
+
+function updateTaxBracket() {
+  const filing = document.getElementById('taxFilingStatus').value;
+  const income = parseFloat(document.getElementById('taxIncome').value.replace(/[$,]/g,'')) || 0;
+  const stateRate = parseFloat(document.getElementById('taxStateRate').value);
+  const accountType = document.getElementById('taxAccountType').value;
+  const displayEl = document.getElementById('taxBracketDisplay');
+  const rateEl = document.getElementById('taxEffectiveRate');
+  const detailEl = document.getElementById('taxBracketDetail');
+
+  if (accountType === 'roth') {
+    rateEl.textContent = '0%';
+    detailEl.textContent = 'Roth IRA — dividends grow and distribute tax-free';
+    displayEl.style.background = '#f0fff4';
+    return;
+  }
+  if (accountType === 'ira') {
+    const marginal = getMarginalRate(income, filing);
+    rateEl.textContent = ((marginal + stateRate) * 100).toFixed(1) + '%';
+    detailEl.textContent = `Traditional IRA: taxed as ordinary income at withdrawal — ${(marginal*100).toFixed(0)}% federal + ${(stateRate*100).toFixed(0)}% state`;
+    displayEl.style.background = '#fffbeb';
+    return;
+  }
+  // Taxable: covered call ETF distributions are typically ordinary income (not qualified)
+  const marginal = getMarginalRate(income, filing);
+  const effective = marginal + stateRate;
+  rateEl.textContent = (effective * 100).toFixed(1) + '%';
+  detailEl.textContent = `${(marginal*100).toFixed(0)}% federal ordinary + ${(stateRate*100).toFixed(0)}% state · CC ETF distributions are typically ordinary income`;
+  displayEl.style.background = '#ebf8ff';
+}
+
+function calculateTaxImpact() {
+  if (!_lastEtfResults || _lastEtfResults.length === 0) {
+    document.getElementById('taxResultsArea').innerHTML = `
+      <div style="background:#fff5f5;border:1px solid #fed7d7;border-radius:12px;padding:24px;text-align:center;color:#c53030;">
+        ⚠️ No portfolio data found. Please go to the <strong>Simulator</strong> tab, add ETFs, and click <strong>Calculate Portfolio Performance</strong> first.
+      </div>`;
+    return;
+  }
+
+  const filing = document.getElementById('taxFilingStatus').value;
+  const income = parseFloat(document.getElementById('taxIncome').value.replace(/[$,]/g,'')) || 0;
+  const stateRate = parseFloat(document.getElementById('taxStateRate').value);
+  const accountType = document.getElementById('taxAccountType').value;
+
+  const marginalFed = getMarginalRate(income, filing);
+  const stateR = stateRate;
+
+  let totalGross = 0, totalTax = 0, totalAfter = 0;
+  const rows = _lastEtfResults.map(r => {
+    const grossAnnual = r.annualDivIncome;
+    let taxRate = 0;
+
+    if (accountType === 'roth') {
+      taxRate = 0;
+    } else if (accountType === 'ira') {
+      taxRate = marginalFed + stateR;
+    } else {
+      // Covered call ETFs: most distributions are ordinary income
+      // Exception: broad-market ETFs like SPY, QQQ, VOO might have some qualified dividends
+      const isQualified = ['SPY','QQQ','VOO','VTI','IVV','VGT','VTV','SCHG','VXUS','AGG','DIVO'].includes(r.ticker);
+      if (isQualified) {
+        taxRate = getQDivRate(income, filing) + stateR;
+      } else {
+        taxRate = marginalFed + stateR;
+      }
+    }
+
+    const taxOwed = grossAnnual * taxRate;
+    const afterTax = grossAnnual - taxOwed;
+    totalGross += grossAnnual;
+    totalTax += taxOwed;
+    totalAfter += afterTax;
+
+    const isQualified = ['SPY','QQQ','VOO','VTI','IVV','VGT','VTV','SCHG','VXUS','AGG','DIVO'].includes(r.ticker);
+    const divType = accountType === 'roth' ? '🌱 Tax-Free' : accountType === 'ira' ? '⏳ Deferred' : isQualified ? '⭐ Qualified' : '📄 Ordinary';
+
+    return `<tr>
+      <td><span class="tkbadge">${r.ticker}</span></td>
+      <td>${divType}</td>
+      <td class="pos">${fmt$(grossAnnual)}</td>
+      <td>${(taxRate*100).toFixed(1)}%</td>
+      <td class="tax-owed">${fmt$(taxOwed)}</td>
+      <td class="tax-after">${fmt$(afterTax)}</td>
+      <td class="tax-after">${fmt$(afterTax/12)}</td>
+    </tr>`;
+  }).join('');
+
+  const taxRateSummary = totalGross > 0 ? (totalTax / totalGross) : 0;
+  const accountLabel = accountType === 'roth' ? 'Roth IRA' : accountType === 'ira' ? 'Traditional IRA' : 'Taxable Account';
+
+  document.getElementById('taxResultsArea').innerHTML = `
+    <div class="tax-card">
+      <div class="tax-card-header">💰 After-Tax Income Summary — ${accountLabel}</div>
+      <div class="tax-card-body">
+        <div class="tax-summary-grid">
+          <div class="tax-summary-item">
+            <div class="tax-summary-value">${fmt$(totalGross)}</div>
+            <div class="tax-summary-label">Gross Annual Income</div>
+          </div>
+          <div class="tax-summary-item">
+            <div class="tax-summary-value tax-owed">${fmt$(totalTax)}</div>
+            <div class="tax-summary-label">Est. Tax Owed</div>
+          </div>
+          <div class="tax-summary-item">
+            <div class="tax-summary-value tax-after">${fmt$(totalAfter)}</div>
+            <div class="tax-summary-label">After-Tax Income</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+          <div class="tax-summary-item">
+            <div class="tax-summary-value">${(taxRateSummary*100).toFixed(1)}%</div>
+            <div class="tax-summary-label">Effective Tax Rate</div>
+          </div>
+          <div class="tax-summary-item">
+            <div class="tax-summary-value tax-after">${fmt$(totalAfter/12)}</div>
+            <div class="tax-summary-label">After-Tax Monthly</div>
+          </div>
+          <div class="tax-summary-item">
+            <div class="tax-summary-value tax-after">${fmt$(totalAfter/365)}</div>
+            <div class="tax-summary-label">After-Tax Daily</div>
+          </div>
+          <div class="tax-summary-item">
+            <div class="tax-summary-value">${fmt$(totalGross - totalAfter)}</div>
+            <div class="tax-summary-label">Taxes Per Year</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tax-card">
+      <div class="tax-card-header">📋 Per-ETF Tax Breakdown</div>
+      <div class="tax-card-body" style="padding:0;">
+        <table class="tax-table">
+          <thead><tr>
+            <th>ETF</th><th>Div Type</th><th>Gross Income</th><th>Tax Rate</th><th>Tax Owed</th><th>After-Tax</th><th>After-Tax/Mo</th>
+          </tr></thead>
+          <tbody>
+            ${rows}
+            <tr>
+              <td><strong>TOTAL</strong></td>
+              <td>—</td>
+              <td class="pos">${fmt$(totalGross)}</td>
+              <td>${(taxRateSummary*100).toFixed(1)}%</td>
+              <td class="tax-owed">${fmt$(totalTax)}</td>
+              <td class="tax-after">${fmt$(totalAfter)}</td>
+              <td class="tax-after">${fmt$(totalAfter/12)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;padding:12px 14px;font-size:11px;color:#744210;line-height:1.7;">
+      <strong>Notes:</strong> Covered call ETF distributions are typically classified as ordinary income (not qualified dividends) because premiums collected from selling options are treated as short-term capital gains or ordinary income.
+      DIVO and broad-market ETFs (SPY, VOO, etc.) may pay qualified dividends taxed at lower rates.
+      Return of capital (ROC) distributions are not taxed currently but reduce your cost basis.
+      This tool uses ${(marginalFed*100).toFixed(0)}% federal marginal rate for ordinary income.
+    </div>
+  `;
+}
+
+// Initialize tax bracket display on load
+updateTaxBracket();
 </script>
 </body>
 </html>
