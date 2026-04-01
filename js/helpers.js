@@ -2,6 +2,12 @@
 // HELPERS
 // ============================================================
 function fmt$(n) { return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+// Whole-dollar formatter (no cents) — used for large portfolio values in backtest/rebalance
+function fmtWhole$(n) {
+  const abs = Math.abs(Math.round(n));
+  const s = '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return n < 0 ? '-' + s : s;
+}
 function fmtPct(n, d=2) { return (n*100).toFixed(d)+'%'; }
 function colorClass(n) { return n>=0?'pos':'neg'; }
 function arrow(n) { return n>=0?'▲':'▼'; }

@@ -368,7 +368,7 @@ function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest, portSi
   document.getElementById(pfx + 'Summary').innerHTML = `
     <div class="bt-metrics">
       <div class="bt-metric">
-        <div class="bt-metric-val ${hist.finalValue >= portSize ? 'pos' : 'neg'}">${fmt$(hist.finalValue)}</div>
+        <div class="bt-metric-val ${hist.finalValue >= portSize ? 'pos' : 'neg'}">${fmtWhole$(hist.finalValue)}</div>
         <div class="bt-metric-lbl">Final Value (${endYear})</div>
       </div>
       <div class="bt-metric">
@@ -376,7 +376,7 @@ function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest, portSi
         <div class="bt-metric-lbl">Annualised Return (CAGR)</div>
       </div>
       <div class="bt-metric">
-        <div class="bt-metric-val pos">${fmt$(totalIncome)}</div>
+        <div class="bt-metric-val pos">${fmtWhole$(totalIncome)}</div>
         <div class="bt-metric-lbl">Total Income Generated</div>
       </div>
       <div class="bt-metric">
@@ -384,11 +384,11 @@ function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest, portSi
         <div class="bt-metric-lbl">Max Drawdown</div>
       </div>
       <div class="bt-metric">
-        <div class="bt-metric-val">${fmt$(mc.p50)}</div>
+        <div class="bt-metric-val">${fmtWhole$(mc.p50)}</div>
         <div class="bt-metric-lbl">MC Median (${mcYears}yr)</div>
       </div>
       <div class="bt-metric">
-        <div class="bt-metric-val" style="color:#718096;">${fmt$(mc.p5)} – ${fmt$(mc.p95)}</div>
+        <div class="bt-metric-val" style="color:#718096;">${fmtWhole$(mc.p5)} – ${fmtWhole$(mc.p95)}</div>
         <div class="bt-metric-lbl">MC 90% Range</div>
       </div>
     </div>
@@ -454,7 +454,7 @@ function renderBtHistoryChart(hist, portSize, startYear, endYear, pfx) {
         legend: { position: 'top', labels: { font: { size: 11 }, usePointStyle: true } },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.raw)}`
+            label: ctx => ` ${ctx.dataset.label}: ${fmtWhole$(ctx.raw)}`
           }
         }
       },
@@ -495,7 +495,7 @@ function renderBtMCChart(mc, portSize, mcYears, pfx) {
       plugins: {
         legend: { position: 'top', labels: { font: { size: 10 }, usePointStyle: true, boxWidth: 12 } },
         tooltip: {
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt$(ctx.raw)}` }
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtWhole$(ctx.raw)}` }
         }
       },
       scales: {
@@ -551,11 +551,11 @@ function buildBtTable(hist) {
     html += `
       <tr>
         <td><strong>${y.year}</strong></td>
-        <td style="text-align:right;">${fmt$(y.startValue)}</td>
-        <td style="text-align:right;color:#276749;">${fmt$(y.income)}</td>
+        <td style="text-align:right;">${fmtWhole$(y.startValue)}</td>
+        <td style="text-align:right;color:#276749;">${fmtWhole$(y.income)}</td>
         <td style="text-align:right;" class="${cls}">${(retPct*100).toFixed(1)}%</td>
-        <td style="text-align:right;font-weight:700;">${fmt$(y.endValue)}</td>
-        <td style="text-align:right;" class="${cls}">${change >= 0 ? '+' : ''}${fmt$(change)}</td>
+        <td style="text-align:right;font-weight:700;">${fmtWhole$(y.endValue)}</td>
+        <td style="text-align:right;" class="${cls}">${change >= 0 ? '+' : ''}${fmtWhole$(change)}</td>
       </tr>
     `;
   }
@@ -589,7 +589,7 @@ function buildMCTable(mc, portSize, years) {
         ${scenarios.map(s => `
           <tr>
             <td>${s.label}</td>
-            <td style="text-align:right;font-weight:700;">${fmt$(s.value)}</td>
+            <td style="text-align:right;font-weight:700;">${fmtWhole$(s.value)}</td>
             <td style="text-align:right;" class="${s.pct >= 0 ? 'pos' : 'neg'}">${s.pct >= 0 ? '+' : ''}${s.pct.toFixed(1)}%</td>
             <td style="text-align:right;" class="${s.pct >= 0 ? 'pos' : 'neg'}">${annCagr(s)}%</td>
           </tr>
