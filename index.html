@@ -281,43 +281,71 @@
 <div id="tab-rebalance" class="tab-panel reb-panel">
   <div style="margin-bottom:20px;">
     <h2 style="font-size:18px;font-weight:700;color:#1a202c;">🔄 Portfolio Rebalancing</h2>
-    <p style="font-size:12px;color:#718096;margin-top:3px;">Upload your Fidelity portfolio CSV, set desired allocations, and see exactly what to buy or sell.</p>
+    <p style="font-size:12px;color:#718096;margin-top:3px;">Set your desired allocation and see exactly what to buy or sell to get there.</p>
   </div>
 
-  <!-- Upload Card -->
-  <div class="reb-upload-card">
-    <h3>📂 Upload Fidelity Portfolio Export</h3>
-    <p>Download your positions from Fidelity: <strong>Accounts → Portfolio → Positions → Download (CSV)</strong>.<br>
-    Multi-account files are supported — you can filter by account after upload.</p>
-    <label class="reb-file-label">
-      📤 Choose CSV File
-      <input type="file" class="reb-file-input" id="rebFileInput" accept=".csv" onchange="handleRebFile(event)" />
-    </label>
-    <div class="reb-error" id="rebUploadError"></div>
+  <!-- MODE SELECTOR -->
+  <div class="reb-mode-bar">
+    <button class="reb-mode-btn" id="rebModeCSV" onclick="rebSetMode('csv')">
+      <div class="mode-icon">📂</div>
+      <div class="mode-title">Upload from Fidelity</div>
+      <div class="mode-desc">Import positions from a Fidelity CSV export. Supports multi-account files with account filtering.</div>
+    </button>
+    <button class="reb-mode-btn" id="rebModeManual" onclick="rebSetMode('manual')">
+      <div class="mode-icon">✏️</div>
+      <div class="mode-title">Build from Scratch</div>
+      <div class="mode-desc">Search any ticker, enter current values, and plan your ideal allocation from the ground up.</div>
+    </button>
   </div>
 
-  <!-- Filter + Actions (shown after upload) -->
-  <div class="reb-filter-row">
-    <label id="rebAccountFilterLabel" style="display:none;">Filter by Account:</label>
-    <select id="rebAccountFilter" onchange="applyRebAccountFilter()" style="display:none;"></select>
+  <!-- CSV MODE SECTION -->
+  <div id="rebCSVSection" style="display:none;">
+    <div class="reb-section">
+      <h3>📂 Upload Fidelity Portfolio Export</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">Download from Fidelity: <strong>Accounts → Portfolio → Positions → Download (CSV)</strong>. Multi-account files are supported.</p>
+      <label class="reb-file-label">
+        📤 Choose CSV File
+        <input type="file" class="reb-file-input" id="rebFileInput" accept=".csv" onchange="handleRebFile(event)" />
+      </label>
+      <div class="reb-error" id="rebUploadError"></div>
+    </div>
+    <!-- Account filter (shown after upload) -->
+    <div class="reb-filter-row" id="rebFilterRow">
+      <label>Filter by Account:</label>
+      <select id="rebAccountFilter" onchange="applyRebAccountFilter()"></select>
+    </div>
   </div>
 
+  <!-- MANUAL MODE SECTION -->
+  <div id="rebManualSection" style="display:none;">
+    <div class="reb-section">
+      <h3>✏️ Search &amp; Add Positions</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">Search any ETF or stock ticker, then enter how much you currently hold in dollars.</p>
+      <div class="reb-search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="rebSearchInput"
+          placeholder="Search ticker — JEPI, SCHD, VOO…" autocomplete="off" />
+        <div class="search-dropdown" id="rebSearchDropdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTION BAR (shown once positions exist) -->
   <div class="reb-add-row" id="rebAddSection">
-    <span style="font-size:12px;color:#718096;font-weight:600;">Add ticker:</span>
-    <input type="text" class="reb-add-input" id="rebAddTicker" placeholder="e.g. JEPI"
+    <span style="font-size:12px;color:#718096;font-weight:600;">Quick add:</span>
+    <input type="text" class="reb-add-input" id="rebAddTicker" placeholder="TICKER"
       onkeydown="if(event.key==='Enter') addRebTicker()" maxlength="10" />
     <button class="reb-btn" onclick="addRebTicker()">＋ Add</button>
+    <span style="width:1px;height:20px;background:#e2e8f0;display:inline-block;margin:0 4px;"></span>
     <button class="reb-btn" onclick="distributeRebEvenly()" title="Distribute 100% evenly across all positions">⚖️ Even Split</button>
     <button class="reb-btn" onclick="resetRebDesired()" title="Reset desired % back to current allocation">↺ Reset to Current</button>
   </div>
 
-  <!-- Main Table -->
+  <!-- MAIN TABLE + CHARTS -->
   <div id="rebContent" style="display:none;">
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;overflow:hidden;">
       <div id="rebTable"></div>
     </div>
-
-    <!-- Charts -->
     <div class="reb-charts-row">
       <div class="reb-chart-card">
         <canvas id="rebChartPresent"></canvas>
