@@ -245,11 +245,14 @@ function _renderRebDropdown(items, q) {
   if (!items.length) { dd.style.display = 'none'; return; }
 
   dd.innerHTML = items.map(it => {
-    const yld = it.yield_annual ? (it.yield_annual * 100).toFixed(1) + '%' : '';
-    const tag = it.source === 'live'
+    const yld  = it.yield_annual ? (it.yield_annual * 100).toFixed(1) + '%' : '';
+    // Show LIVE tag when server is online (price data will be fetched on add),
+    // or CACHE when offline — reflects data availability, not just search source
+    const tag  = it.source === 'live'
       ? '<span class="sri-live-tag">LIVE</span>'
-      : '<span class="sri-cache-tag">CACHE</span>';
-    return `<div class="sri" onclick="rebManualAddFromSearch('${it.ticker}','${(it.name||it.ticker).replace(/'/g,"\\'")}')">
+      : (serverOnline ? '<span class="sri-live-tag">LIVE</span>' : '<span class="sri-cache-tag">CACHE</span>');
+    const safeName = (it.name || it.ticker).replace(/'/g, "\\'");
+    return `<div class="sri" onclick="rebManualAddFromSearch('${it.ticker}','${safeName}')">
       <div><div class="sri-ticker">${it.ticker}${tag}</div><div class="sri-name">${it.name || it.ticker}</div></div>
       <div class="sri-yield">${yld}</div>
     </div>`;
@@ -268,9 +271,16 @@ function rebManualAddFromSearch(ticker, name) {
   document.getElementById('rebSearchInput').value = '';
   document.getElementById('rebSearchDropdown').style.display = 'none';
 
-  if (rebPositions.find(p => p.symbol === ticker)) return; // already present
+  // If ticker was deleted and then re-added, allow it (just re-insert with 0 value)
+  const existing = rebPositions.find(p => p.symbol === ticker);
+  if (existing) {
+    // Already in table — just focus its value field
+    const inp = document.getElementById('rebVal_' + ticker);
+    if (inp) inp.focus();
+    return;
+  }
 
-  rebPositions.push({ symbol: ticker, desc: name, value: 0, qty: 0, isManual: true, editingValue: true });
+  rebPositions.push({ symbol: ticker, desc: name, value: 0, qty: 0, isManual: true });
   rebDesired[ticker] = 0;
 
   document.getElementById('rebContent').style.display   = 'block';
@@ -423,21 +433,22 @@ function renderRebalance() {
          </td>
          <td style="font-size:12px;color:#4a5568;">${pos.desc}</td>`;
 
-    // Value cell — editable for manual mode positions
+    // Value cell — editable for manual mode positions (text input to avoid spinner arrows)
     const valueCell = (isManual && rebMode === 'manual')
       ? `<td style="text-align:right;">
-           <input type="number" id="rebVal_${pos.symbol}" min="0" step="100"
-             value="${pos.value || ''}" placeholder="$ amount"
-             oninput="setRebPositionValue('${pos.symbol}', this.value)"
-             style="width:100px;text-align:right;border:1px solid #90cdf4;border-radius:6px;padding:4px 8px;font-size:12px;background:#ebf8ff;" />
+           <input type="text" inputmode="numeric" id="rebVal_${pos.symbol}"
+             value="${pos.value > 0 ? pos.value : ''}" placeholder="e.g. 25000"
+             oninput="setRebPositionValue('${pos.symbol}', this.value.replace(/[^0-9.]/g,''))"
+             onblur="this.value=this.value.replace(/[^0-9.]/g,'')"
+             style="width:110px;text-align:right;border:1px solid #90cdf4;border-radius:6px;padding:4px 8px;font-size:12px;background:#ebf8ff;" />
          </td>`
       : `<td style="text-align:right;">${rebFmt$(pos.value)}</td>`;
 
-    // Cash value — also editable
+    // Cash value — also editable, no spinner
     const cashValueCell = isCash
       ? `<td style="text-align:right;">
-           <input type="number" min="0" step="100" value="${rebCash}"
-             oninput="setRebCashValue(this.value)"
+           <input type="text" inputmode="numeric" value="${rebCash > 0 ? rebCash : ''}" placeholder="e.g. 5000"
+             oninput="setRebCashValue(this.value.replace(/[^0-9.]/g,''))"
              style="width:110px;text-align:right;border:1px solid #9ae6b4;border-radius:6px;padding:4px 8px;font-size:12px;background:#f0fff4;" />
          </td>`
       : valueCell;
@@ -461,9 +472,9 @@ function renderRebalance() {
         <td style="text-align:right;">${rebFmtPct(curPct / 100)}</td>
         <td style="text-align:center;">
           <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
-            <input type="number" min="0" max="100" step="0.5"
+            <input type="text" inputmode="decimal"
               value="${desPct || ''}" placeholder="0"
-              oninput="setRebDesired('${pos.symbol}', this.value)"
+              oninput="setRebDesired('${pos.symbol}', this.value.replace(/[^0-9.]/g,''))"
               style="width:64px;text-align:center;border:1px solid #cbd5e0;border-radius:6px;padding:4px 6px;font-size:13px;" />
             <span style="font-size:11px;color:#718096;">%</span>
           </div>

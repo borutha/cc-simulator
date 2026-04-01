@@ -130,6 +130,82 @@
     <div id="resultsPanel" style="display:none;"></div>
   </div>
 </div>
+
+<!-- BACKTESTING PANEL (below simulator grid, inside tab-simulator) -->
+<div style="padding:0 24px 8px;" id="btSection">
+  <div style="border-top:2px solid #e2e8f0;padding-top:20px;margin-top:4px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <h2 style="font-size:16px;font-weight:700;color:#1a202c;">📉 Backtesting &amp; Monte Carlo</h2>
+        <p style="font-size:11px;color:#718096;margin-top:2px;">Historical simulation (2014–2025) + Monte Carlo stress testing. Uses your current portfolio.</p>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="bt-controls">
+      <div class="bt-ctrl-group">
+        <label>Backtest Start Year</label>
+        <select id="btStartYear">
+          <option value="2015">2015 (10 years)</option>
+          <option value="2017">2017 (8 years)</option>
+          <option value="2019" selected>2019 (6 years)</option>
+          <option value="2021">2021 (4 years)</option>
+          <option value="2023">2023 (2 years)</option>
+        </select>
+      </div>
+      <div class="bt-ctrl-group">
+        <label>Dividends</label>
+        <select id="btReinvest">
+          <option value="no" selected>Take as cash</option>
+          <option value="yes">Reinvest (DRIP)</option>
+        </select>
+      </div>
+      <div class="bt-ctrl-group">
+        <label>Monte Carlo Horizon</label>
+        <select id="btMCYears">
+          <option value="5">5 years forward</option>
+          <option value="10" selected>10 years forward</option>
+          <option value="15">15 years forward</option>
+          <option value="20">20 years forward</option>
+        </select>
+      </div>
+      <button class="bt-run-btn" id="btRunBtn" onclick="runBacktest()">▶ Run Analysis</button>
+    </div>
+
+    <!-- Methodology note -->
+    <div class="bt-methodology">
+      <strong>Methodology:</strong> Most covered-call ETFs launched 2020–2023, so this tool reconstructs historical performance using the underlying index's actual yearly returns (S&P 500, QQQ, Russell 2000) combined with each ETF's covered-call cap factor and yield profile.
+      ETFs with real history (QYLD 2013, XYLD 2013, DIVO 2016, JEPI 2020) use actual returns where available.
+      Monte Carlo runs <strong>1,000 simulations</strong> with random annual returns drawn from the historical distribution plus fat-tail shock events (5% chance each year).
+    </div>
+
+    <!-- Results (hidden until run) -->
+    <div id="btResults" style="display:none;">
+      <div id="btSummary"></div>
+      <div class="bt-charts-row">
+        <div class="bt-chart-card">
+          <h3>📈 Historical Portfolio vs S&P 500</h3>
+          <div class="bt-chart-canvas"><canvas id="btHistoryChart"></canvas></div>
+        </div>
+        <div class="bt-chart-card">
+          <h3>🎲 Monte Carlo — Future Scenarios</h3>
+          <div class="bt-chart-canvas"><canvas id="btMCChart"></canvas></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="bt-chart-card">
+          <h3>📅 Year-by-Year Historical Results</h3>
+          <div id="btTable" style="overflow-x:auto;"></div>
+        </div>
+        <div class="bt-chart-card">
+          <h3>🎯 Monte Carlo Scenario Summary</h3>
+          <div id="btMCTable"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div style="padding:0 24px 16px;">
   <div class="fin-disclaimer">
     ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. This simulator is for educational purposes only.
@@ -373,5 +449,6 @@
 <script src="js/compare.js"></script>
 <script src="js/tax.js"></script>
 <script src="js/rebalance.js"></script>
+<script src="js/backtest.js"></script>
 </body>
 </html>
