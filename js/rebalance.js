@@ -107,8 +107,8 @@ function getRebDesired(sym) {
 }
 
 function rebFmt$(n) {
-  const abs = Math.abs(n);
-  const s   = '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const abs = Math.abs(Math.round(n));
+  const s   = '$' + abs.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   return n < 0 ? '-' + s : s;
 }
 
