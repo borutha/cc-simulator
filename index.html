@@ -440,6 +440,75 @@
     ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. This tool is for educational purposes only.
     Rebalancing suggestions are estimates based on current values. Consult a qualified financial professional before making investment decisions.
   </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       BACKTESTING + MONTE CARLO  (Rebalancing tab)
+  ══════════════════════════════════════════════════════════ -->
+  <div id="rebBtSection" style="margin-top:28px;display:none;">
+    <div style="border-top:2px solid #e2e8f0;padding-top:20px;">
+      <h2 style="font-size:16px;font-weight:700;color:#1a202c;margin-bottom:4px;">📈 Backtesting &amp; Monte Carlo</h2>
+      <p style="font-size:12px;color:#718096;margin-bottom:16px;">Simulate how your current portfolio would have performed historically and project future scenarios.</p>
+
+      <!-- Controls -->
+      <div class="bt-controls">
+        <div class="bt-ctrl-group">
+          <label>Start Year</label>
+          <select id="rebBtStartYear">
+            <option value="2015">2015 (10 yr)</option>
+            <option value="2016">2016 (9 yr)</option>
+            <option value="2017">2017 (8 yr)</option>
+            <option value="2018">2018 (7 yr)</option>
+            <option value="2019">2019 (6 yr)</option>
+            <option value="2020">2020 (5 yr)</option>
+            <option value="2021">2021 (4 yr)</option>
+            <option value="2014">2014 (11 yr)</option>
+          </select>
+        </div>
+        <div class="bt-ctrl-group">
+          <label>Dividends</label>
+          <select id="rebBtReinvest">
+            <option value="no">Taken as cash</option>
+            <option value="yes">Reinvested</option>
+          </select>
+        </div>
+        <div class="bt-ctrl-group">
+          <label>MC Horizon</label>
+          <select id="rebBtMCYears">
+            <option value="10">10 years</option>
+            <option value="15">15 years</option>
+            <option value="20">20 years</option>
+            <option value="5">5 years</option>
+            <option value="30">30 years</option>
+          </select>
+        </div>
+        <button class="bt-run-btn" id="rebBtRunBtn" onclick="runRebBacktest()">▶ Run Analysis</button>
+      </div>
+
+      <!-- Methodology note -->
+      <div class="bt-methodology">
+        📖 <strong>Methodology:</strong> Most CC ETFs launched 2020–2023, so we use <em>proxy reconstruction</em>: actual index returns (SPY/QQQ/IWM/GLD) × each ETF's cap factor + modelled income.
+        Monte Carlo runs 1,000 simulations with fat-tail shocks. Results are illustrative, not a guarantee.
+      </div>
+
+      <!-- Results (hidden until run) -->
+      <div id="rebBtResults" style="display:none;">
+        <div id="rebBtSummary"></div>
+        <div class="bt-charts-row">
+          <div class="bt-chart-card">
+            <div style="font-size:12px;font-weight:600;color:#4a5568;margin-bottom:8px;">📊 Historical Growth (vs S&amp;P 500)</div>
+            <canvas id="rebBtHistoryChart" class="bt-chart-canvas"></canvas>
+          </div>
+          <div class="bt-chart-card">
+            <div style="font-size:12px;font-weight:600;color:#4a5568;margin-bottom:8px;">🎲 Monte Carlo Fan Chart</div>
+            <canvas id="rebBtMCChart" class="bt-chart-canvas"></canvas>
+          </div>
+        </div>
+        <div id="rebBtTable" style="margin-top:20px;overflow-x:auto;"></div>
+        <div id="rebBtMCTable" style="margin-top:20px;overflow-x:auto;"></div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- end tab-rebalance -->
 
 <script src="js/data.js"></script>

@@ -144,8 +144,9 @@ function rebSetMode(mode) {
   const filterRow = document.getElementById('rebFilterRow');
   if (filterRow) filterRow.style.display = 'none';
 
-  document.getElementById('rebContent').style.display  = 'none';
+  document.getElementById('rebContent').style.display   = 'none';
   document.getElementById('rebAddSection').style.display = 'none';
+  document.getElementById('rebBtSection').style.display  = 'none';
 }
 
 // ---- CSV MODE ----
@@ -175,6 +176,7 @@ function handleRebFile(e) {
 
     document.getElementById('rebContent').style.display   = 'block';
     document.getElementById('rebAddSection').style.display = 'flex';
+    document.getElementById('rebBtSection').style.display  = 'block';
     renderRebalance();
   };
   reader.readAsText(file);
@@ -285,6 +287,7 @@ function rebManualAddFromSearch(ticker, name) {
 
   document.getElementById('rebContent').style.display   = 'block';
   document.getElementById('rebAddSection').style.display = 'flex';
+  document.getElementById('rebBtSection').style.display  = 'block';
   renderRebalance();
 
   // Focus the value input for the newly added row
@@ -562,7 +565,8 @@ function addRebTicker() {
   rebPositions.push({ symbol: sym, desc: sym, value: 0, qty: 0, isManual: true });
   rebDesired[sym] = 0;
   input.value = '';
-  document.getElementById('rebContent').style.display = 'block';
+  document.getElementById('rebContent').style.display  = 'block';
+  document.getElementById('rebBtSection').style.display = 'block';
   renderRebalance();
   setTimeout(() => { const v = document.getElementById('rebVal_' + sym); if (v) v.focus(); }, 50);
 }

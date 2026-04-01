@@ -294,50 +294,78 @@ function buildMonteCarlFan(startValue, mean, std, yieldAvg, years, reinvest, fan
 
 // ---- UI RENDER ----
 
-let btChartHistory   = null;
-let btChartMonteCarlo = null;
+// Chart instance registry keyed by prefix ('sim' or 'reb')
+const _btCharts = {};
 
+// ---- SIMULATOR tab entry point ----
 function runBacktest() {
-  const tickers = Object.keys(holdings);
-  if (!tickers.length) {
-    alert('Build a portfolio in the Simulator tab first, then run backtesting.');
-    return;
+  _runBtForContext('sim');
+}
+
+// ---- REBALANCE tab entry point ----
+function runRebBacktest() {
+  _runBtForContext('reb');
+}
+
+// ---- Shared runner ----
+function _runBtForContext(prefix) {
+  // Resolve holdings + portfolioSize depending on context
+  let btHoldings, btPortSize;
+  if (prefix === 'sim') {
+    btHoldings  = holdings;          // global from simulator.js
+    btPortSize  = getPortfolioSize(); // reads #portfolioSize
+    if (!Object.keys(btHoldings).length) {
+      alert('Build a portfolio in the Simulator tab first, then run backtesting.');
+      return;
+    }
+  } else {
+    // Build holdings map from rebPositions (ticker -> %)
+    const total = rebPositions.reduce((s, p) => s + (p.value || 0), 0);
+    if (!rebPositions.length || total <= 0) {
+      alert('Add positions in the Rebalancing tab first, then run backtesting.');
+      return;
+    }
+    btHoldings = {};
+    rebPositions.forEach(p => {
+      if (p.symbol && p.symbol !== '__CASH__' && p.value > 0) {
+        btHoldings[p.symbol] = (p.value / total) * 100;
+      }
+    });
+    btPortSize = total;
   }
 
-  const startYear = parseInt(document.getElementById('btStartYear').value) || 2015;
-  const reinvest  = document.getElementById('btReinvest').value === 'yes';
-  const mcYears   = parseInt(document.getElementById('btMCYears').value)  || 10;
-  const endYear   = 2025;
+  const pfx        = prefix === 'sim' ? 'bt' : 'rebBt';
+  const startYear  = parseInt(document.getElementById(pfx + 'StartYear').value) || 2015;
+  const reinvest   = document.getElementById(pfx + 'Reinvest').value === 'yes';
+  const mcYears    = parseInt(document.getElementById(pfx + 'MCYears').value)   || 10;
+  const endYear    = 2025;
 
-  document.getElementById('btRunBtn').textContent    = '⏳ Running…';
-  document.getElementById('btRunBtn').disabled       = true;
-  document.getElementById('btResults').style.display = 'none';
+  document.getElementById(pfx + 'RunBtn').textContent    = '⏳ Running…';
+  document.getElementById(pfx + 'RunBtn').disabled       = true;
+  document.getElementById(pfx + 'Results').style.display = 'none';
 
-  // Run after brief yield to allow UI update
   setTimeout(() => {
     try {
-      const hist  = runHistoricalBacktest(holdings, getPortfolioSize(), startYear, endYear, reinvest);
-      const mc    = runMonteCarlo(holdings, getPortfolioSize(), mcYears, reinvest, 1000);
-
-      renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest);
+      const hist = runHistoricalBacktest(btHoldings, btPortSize, startYear, endYear, reinvest);
+      const mc   = runMonteCarlo(btHoldings, btPortSize, mcYears, reinvest, 1000);
+      renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest, btPortSize, pfx);
     } catch(e) {
       console.error('Backtest error', e);
       alert('Backtest failed: ' + e.message);
     }
-    document.getElementById('btRunBtn').textContent = '▶ Run Analysis';
-    document.getElementById('btRunBtn').disabled    = false;
+    document.getElementById(pfx + 'RunBtn').textContent = '▶ Run Analysis';
+    document.getElementById(pfx + 'RunBtn').disabled    = false;
   }, 40);
 }
 
-function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest) {
-  const portSize  = getPortfolioSize();
-  const years     = hist.portSeries.length;
-  const cagr      = years > 0 ? (Math.pow(hist.finalValue / portSize, 1 / years) - 1) : 0;
+function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest, portSize, pfx) {
+  const years       = hist.portSeries.length;
+  const cagr        = years > 0 ? (Math.pow(hist.finalValue / portSize, 1 / years) - 1) : 0;
   const totalIncome = hist.portSeries.reduce((s, y) => s + y.income, 0);
-  const maxDD     = computeMaxDrawdown(hist.portSeries);
+  const maxDD       = computeMaxDrawdown(hist.portSeries);
 
   // ── SUMMARY METRICS ──
-  document.getElementById('btSummary').innerHTML = `
+  document.getElementById(pfx + 'Summary').innerHTML = `
     <div class="bt-metrics">
       <div class="bt-metric">
         <div class="bt-metric-val ${hist.finalValue >= portSize ? 'pos' : 'neg'}">${fmt$(hist.finalValue)}</div>
@@ -367,34 +395,32 @@ function renderBtResults(hist, mc, startYear, endYear, mcYears, reinvest) {
   `;
 
   // ── HISTORICAL CHART ──
-  renderBtHistoryChart(hist, portSize, startYear, endYear);
+  renderBtHistoryChart(hist, portSize, startYear, endYear, pfx);
 
   // ── MONTE CARLO CHART ──
-  renderBtMCChart(mc, portSize, mcYears);
+  renderBtMCChart(mc, portSize, mcYears, pfx);
 
   // ── YEAR-BY-YEAR TABLE ──
-  document.getElementById('btTable').innerHTML = buildBtTable(hist);
+  document.getElementById(pfx + 'Table').innerHTML = buildBtTable(hist);
 
   // ── MC SCENARIO TABLE ──
-  document.getElementById('btMCTable').innerHTML = buildMCTable(mc, portSize, mcYears);
+  document.getElementById(pfx + 'MCTable').innerHTML = buildMCTable(mc, portSize, mcYears);
 
-  document.getElementById('btResults').style.display = 'block';
-  document.getElementById('btResults').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(pfx + 'Results').style.display = 'block';
+  document.getElementById(pfx + 'Results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function renderBtHistoryChart(hist, portSize, startYear, endYear) {
-  const ctx = document.getElementById('btHistoryChart');
-  if (!ctx) return;
-  if (btChartHistory) btChartHistory.destroy();
+function renderBtHistoryChart(hist, portSize, startYear, endYear, pfx) {
+  const el = document.getElementById(pfx + 'HistoryChart');
+  if (!el) return;
+  if (_btCharts[pfx + 'History']) _btCharts[pfx + 'History'].destroy();
 
-  const labels = hist.portSeries.map(y => y.year);
-  const values = [portSize, ...hist.portSeries.map(y => y.endValue)];
+  const labels  = hist.portSeries.map(y => y.year);
+  const values  = [portSize, ...hist.portSeries.map(y => y.endValue)];
   const labelsX = [startYear - 1, ...labels];
-
-  // Also show a buy-and-hold S&P 500 comparison line
   const spyLine = buildSpyComparison(portSize, startYear, endYear);
 
-  btChartHistory = new Chart(ctx, {
+  _btCharts[pfx + 'History'] = new Chart(el, {
     type: 'line',
     data: {
       labels: labelsX,
@@ -443,15 +469,15 @@ function renderBtHistoryChart(hist, portSize, startYear, endYear) {
   });
 }
 
-function renderBtMCChart(mc, portSize, mcYears) {
-  const ctx = document.getElementById('btMCChart');
-  if (!ctx) return;
-  if (btChartMonteCarlo) btChartMonteCarlo.destroy();
+function renderBtMCChart(mc, portSize, mcYears, pfx) {
+  const el = document.getElementById(pfx + 'MCChart');
+  if (!el) return;
+  if (_btCharts[pfx + 'MC']) _btCharts[pfx + 'MC'].destroy();
 
   const labels  = Array.from({ length: mcYears + 1 }, (_, i) => `Y${i}`);
   const { paths } = mc.fanData;
 
-  btChartMonteCarlo = new Chart(ctx, {
+  _btCharts[pfx + 'MC'] = new Chart(el, {
     type: 'line',
     data: {
       labels,
