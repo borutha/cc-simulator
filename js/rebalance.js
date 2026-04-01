@@ -384,7 +384,7 @@ function renderRebalance() {
       <div>
         <span style="font-size:13px;color:#4a5568;">Total Portfolio Value: </span>
         <strong style="font-size:16px;color:#2b6cb0;">${rebFmt$(total)}</strong>
-        ${rebCash > 0 ? `<span style="font-size:11px;color:#276749;margin-left:8px;">💵 ${rebFmt$(rebCash)} available cash</span>` : ''}
+        ${rebCash > 0 ? `<span style="font-size:13px;color:#4a5568;margin-left:16px;">💵 Available Cash: </span><strong style="font-size:16px;color:#276749;">${rebFmt$(rebCash)}</strong>` : ''}
       </div>
       <div style="font-size:12px;color:${Math.abs(desiredSum - 100) < 0.01 ? '#276749' : '#c05621'};">
         Desired: <strong>${desiredSum.toFixed(2)}%</strong>
