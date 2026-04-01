@@ -440,7 +440,7 @@ function renderRebalance() {
     const valueCell = (isManual && rebMode === 'manual')
       ? `<td style="text-align:right;">
            <input type="text" inputmode="numeric" id="rebVal_${pos.symbol}"
-             value="${pos.value > 0 ? pos.value : ''}" placeholder="e.g. 25000"
+             value="${pos.value > 0 ? Math.round(pos.value) : ''}" placeholder="e.g. 25000"
              oninput="setRebPositionValue('${pos.symbol}', this.value.replace(/[^0-9.]/g,''))"
              onblur="this.value=this.value.replace(/[^0-9.]/g,'')"
              style="width:110px;text-align:right;border:1px solid #90cdf4;border-radius:6px;padding:4px 8px;font-size:12px;background:#ebf8ff;" />
@@ -450,7 +450,7 @@ function renderRebalance() {
     // Cash value — also editable, no spinner
     const cashValueCell = isCash
       ? `<td style="text-align:right;">
-           <input type="text" inputmode="numeric" value="${rebCash > 0 ? rebCash : ''}" placeholder="e.g. 5000"
+           <input type="text" inputmode="numeric" value="${rebCash > 0 ? Math.round(rebCash) : ''}" placeholder="e.g. 5000"
              oninput="setRebCashValue(this.value.replace(/[^0-9.]/g,''))"
              style="width:110px;text-align:right;border:1px solid #9ae6b4;border-radius:6px;padding:4px 8px;font-size:12px;background:#f0fff4;" />
          </td>`
