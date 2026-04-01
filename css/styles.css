@@ -361,3 +361,86 @@
     .bt-metrics { grid-template-columns:repeat(2,1fr); }
     .bt-charts-row { grid-template-columns:1fr; }
   }
+
+  /* ── PORTFOLIO ANALYZER ── */
+  .an-panel { padding: 24px; }
+
+  .an-section-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+
+  .an-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a202c;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .an-analyze-btn {
+    background: linear-gradient(135deg, #553c9a, #805ad5);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(128,90,213,0.3);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  .an-analyze-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(128,90,213,0.4); }
+  .an-analyze-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+  .an-growth-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .an-growth-panel {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .an-growth-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 12px;
+  }
+
+  .an-scenario-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .an-scenario-card {
+    flex: 1;
+    min-width: 90px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .an-ai-card {
+    background: linear-gradient(135deg, #f7f0ff 0%, #ebf8ff 100%);
+    border: 1px solid #d6bcfa;
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+
+  @media (max-width: 768px) {
+    .an-growth-row { grid-template-columns: 1fr; }
+  }

@@ -48,6 +48,7 @@
   <div class="main-tab" onclick="switchTab('compare')">⚖️ Compare Portfolios</div>
   <div class="main-tab" onclick="switchTab('tax')">🧾 Tax Impact</div>
   <div class="main-tab" onclick="switchTab('rebalance')">🔄 Rebalancing</div>
+  <div class="main-tab" onclick="switchTab('analyze')">🧠 Portfolio Analyzer</div>
 </div>
 
 <!-- TAB: SIMULATOR -->
@@ -511,6 +512,144 @@
 
 </div><!-- end tab-rebalance -->
 
+<!-- ═══════════════════════════════════════════════════════════════
+     PORTFOLIO ANALYZER TAB
+════════════════════════════════════════════════════════════════ -->
+<div id="tab-analyze" class="tab-panel an-panel">
+
+  <div style="margin-bottom:20px;">
+    <h2 style="font-size:18px;font-weight:700;color:#1a202c;">🧠 Portfolio Analyzer</h2>
+    <p style="font-size:12px;color:#718096;margin-top:3px;">Deep-dive analysis: sector concentration, holdings overlap, AI market commentary, and growth projections.</p>
+  </div>
+
+  <!-- MODE SELECTOR -->
+  <div class="reb-mode-bar">
+    <button class="reb-mode-btn" id="anModeCSV" onclick="anSetMode('csv')">
+      <div class="mode-icon">📂</div>
+      <div class="mode-title">Upload from Fidelity</div>
+      <div class="mode-desc">Import positions from a Fidelity CSV export. Supports multi-account files.</div>
+    </button>
+    <button class="reb-mode-btn" id="anModeManual" onclick="anSetMode('manual')">
+      <div class="mode-icon">✏️</div>
+      <div class="mode-title">Build from Scratch</div>
+      <div class="mode-desc">Search any ticker, enter values, and analyze your custom portfolio.</div>
+    </button>
+  </div>
+
+  <!-- CSV MODE -->
+  <div id="anCSVSection" style="display:none;">
+    <div class="reb-section">
+      <h3>📂 Upload Fidelity Portfolio Export</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">Download from Fidelity: <strong>Accounts → Portfolio → Positions → Download (CSV)</strong>.</p>
+      <label class="reb-file-label">
+        📤 Choose CSV File
+        <input type="file" class="reb-file-input" id="anFileInput" accept=".csv" onchange="handleAnFile(event)" />
+      </label>
+      <div class="reb-error" id="anUploadError" style="display:none;"></div>
+    </div>
+    <div class="reb-filter-row" id="anFilterRow" style="display:none;">
+      <label>Filter by Account:</label>
+      <select id="anAccountFilter" onchange="applyAnAccountFilter()"></select>
+    </div>
+  </div>
+
+  <!-- MANUAL MODE -->
+  <div id="anManualSection" style="display:none;">
+    <div class="reb-section">
+      <h3>✏️ Search &amp; Add Positions</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">Search any ETF or stock ticker, then enter the dollar value you hold.</p>
+      <div class="reb-search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="anSearchInput"
+          placeholder="Search ticker — JEPI, SCHD, VOO…" autocomplete="off" />
+        <div class="search-dropdown" id="anSearchDropdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSITIONS TABLE -->
+  <div id="anContent" style="display:none;">
+    <!-- Quick-add action bar -->
+    <div class="reb-add-row" id="anAddRow" style="display:flex;">
+      <span style="font-size:12px;color:#718096;font-weight:600;">Quick add:</span>
+      <input type="text" class="reb-add-input" id="anAddTicker" placeholder="TICKER"
+        onkeydown="if(event.key==='Enter') anAddTicker()" maxlength="10" />
+      <button class="reb-btn" onclick="anAddTicker()">＋ Add</button>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;overflow:hidden;margin-top:12px;">
+      <div id="anTable"></div>
+    </div>
+
+    <!-- Analyze button -->
+    <div style="display:flex;justify-content:center;margin-top:20px;">
+      <button class="an-analyze-btn" id="anAnalyzeBtn" onclick="runAnalysis()" style="display:none;">
+        🔍 Analyze Portfolio
+      </button>
+    </div>
+  </div>
+
+  <!-- ── RESULTS (hidden until Analyze is clicked) ── -->
+  <div id="anResults" style="display:none;margin-top:28px;">
+
+    <!-- SECTOR ANALYSIS -->
+    <div class="an-section-card">
+      <h3 class="an-section-title">📊 Sector Concentration</h3>
+      <div id="anSectorWarnings" style="display:none;background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:10px 14px;font-size:12px;color:#744210;margin-bottom:14px;"></div>
+      <div style="height:300px;">
+        <canvas id="anSectorChart"></canvas>
+      </div>
+    </div>
+
+    <!-- HOLDINGS OVERLAP -->
+    <div class="an-section-card" style="margin-top:20px;">
+      <h3 class="an-section-title">🔁 Holdings Overlap Matrix</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">Pairs sharing 2+ top holdings are flagged. High overlap means your "diversification" may be lower than it looks.</p>
+      <div id="anOverlapMatrix"></div>
+    </div>
+
+    <!-- GROWTH PREDICTIONS -->
+    <div class="an-section-card" style="margin-top:20px;">
+      <h3 class="an-section-title">📈 Growth Projections</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:16px;">Monte Carlo simulation (1,000 runs) using historical return distributions. Bear = 5th pct, Base = 50th pct, Bull = 95th pct.</p>
+
+      <div class="an-growth-row">
+        <!-- 1 Year -->
+        <div class="an-growth-panel">
+          <div class="an-growth-label">1-Year Forecast</div>
+          <div id="anGrowth1yr" class="an-scenario-row"></div>
+          <div style="height:220px;margin-top:12px;">
+            <canvas id="anGrowthChart1yr"></canvas>
+          </div>
+        </div>
+        <!-- 5 Year -->
+        <div class="an-growth-panel">
+          <div class="an-growth-label">5-Year Forecast</div>
+          <div id="anGrowth5yr" class="an-scenario-row"></div>
+          <div style="height:220px;margin-top:12px;">
+            <canvas id="anGrowthChart5yr"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI ANALYSIS -->
+    <div class="an-section-card" style="margin-top:20px;">
+      <h3 class="an-section-title">🤖 AI Analysis &amp; Market Commentary</h3>
+      <div id="anAISummary">
+        <div style="color:#718096;font-size:13px;">Click Analyze Portfolio to generate AI commentary.</div>
+      </div>
+    </div>
+
+  </div><!-- end #anResults -->
+
+  <!-- Disclaimer -->
+  <div class="fin-disclaimer" style="margin-top:24px;">
+    ⚠️ <strong>Financial Disclaimer:</strong> I am not a financial advisor. Analysis is for educational purposes only. Projections are based on historical return models and are not a guarantee of future results.
+  </div>
+
+</div><!-- end tab-analyze -->
+
 <script src="js/data.js"></script>
 <script src="js/simulator.js"></script>
 <script src="js/charts.js"></script>
@@ -519,5 +658,6 @@
 <script src="js/tax.js"></script>
 <script src="js/rebalance.js"></script>
 <script src="js/backtest.js"></script>
+<script src="js/analyze.js"></script>
 </body>
 </html>
