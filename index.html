@@ -537,6 +537,18 @@
     </button>
   </div>
 
+  <!-- SAVE / RESTORE SESSION -->
+  <div id="anSessionBar" style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+    <button onclick="anSaveSession()" style="display:flex;align-items:center;gap:6px;background:#ebf8ff;border:1px solid #90cdf4;color:#2b6cb0;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;">
+      💾 Save Session
+    </button>
+    <label style="display:flex;align-items:center;gap:6px;background:#f0fff4;border:1px solid #9ae6b4;color:#276749;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;">
+      📂 Restore Session
+      <input type="file" accept=".json" style="display:none;" onchange="anRestoreSession(event)" />
+    </label>
+    <span id="anSessionMsg" style="font-size:11px;color:#718096;"></span>
+  </div>
+
   <!-- CSV MODE -->
   <div id="anCSVSection" style="display:none;">
     <div class="reb-section">
@@ -651,14 +663,14 @@
 
 </div><!-- end tab-analyze -->
 
-<script src="js/data.js?v=1.2.11"></script>
-<script src="js/simulator.js?v=1.2.11"></script>
-<script src="js/charts.js?v=1.2.11"></script>
-<script src="js/helpers.js?v=1.2.11"></script>
-<script src="js/compare.js?v=1.2.11"></script>
-<script src="js/tax.js?v=1.2.11"></script>
-<script src="js/rebalance.js?v=1.2.11"></script>
-<script src="js/backtest.js?v=1.2.11"></script>
-<script src="js/analyze.js?v=1.2.11"></script>
+<script src="js/data.js?v=1.2.12"></script>
+<script src="js/simulator.js?v=1.2.12"></script>
+<script src="js/charts.js?v=1.2.12"></script>
+<script src="js/helpers.js?v=1.2.12"></script>
+<script src="js/compare.js?v=1.2.12"></script>
+<script src="js/tax.js?v=1.2.12"></script>
+<script src="js/rebalance.js?v=1.2.12"></script>
+<script src="js/backtest.js?v=1.2.12"></script>
+<script src="js/analyze.js?v=1.2.12"></script>
 </body>
 </html>

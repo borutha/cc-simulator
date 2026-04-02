@@ -679,6 +679,74 @@ function setAnPct(sym, val) {
   if (pos) pos.userPct = pct;
 }
 
+// ---- SAVE / RESTORE SESSION ----
+
+function anSaveSession() {
+  if (!anPositions.length) {
+    _anSessionMsg('No positions to save.', '#c53030');
+    return;
+  }
+  const payload = {
+    version: '1.2',
+    savedAt: new Date().toISOString(),
+    positions: anPositions.map(p => ({
+      symbol: p.symbol,
+      desc:   p.desc   || '',
+      value:  p.value  || 0,
+      acct:   p.acct   || '',
+      isManual: !!p.isManual
+    }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toISOString().slice(0, 10);
+  a.href     = url;
+  a.download = `portfolio-session-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  _anSessionMsg(`✓ Saved ${anPositions.length} positions`, '#276749');
+}
+
+function anRestoreSession(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.positions || !Array.isArray(data.positions)) throw new Error('Invalid session file.');
+      anPositions = data.positions.map(p => ({
+        symbol:   (p.symbol || '').toUpperCase().trim(),
+        desc:     p.desc || p.symbol,
+        value:    parseFloat(p.value) || 0,
+        acct:     p.acct || '',
+        isManual: !!p.isManual,
+        pct:      0
+      }));
+      _recalcAnPct();
+      // Show the content panel and set mode
+      anMode = 'csv';
+      document.getElementById('anContent').style.display = 'block';
+      document.getElementById('anFilterRow').style.display = 'none';
+      renderAnalyzerTable();
+      _anSessionMsg(`✓ Restored ${anPositions.length} positions from ${file.name}`, '#276749');
+    } catch(err) {
+      _anSessionMsg('Could not read session file: ' + err.message, '#c53030');
+    }
+    event.target.value = ''; // reset so same file can be re-loaded
+  };
+  reader.readAsText(file);
+}
+
+function _anSessionMsg(msg, color) {
+  const el = document.getElementById('anSessionMsg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color || '#718096';
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
 function deleteAnPosition(sym) {
   anPositions = anPositions.filter(p => p.symbol !== sym);
   renderAnalyzerTable();
