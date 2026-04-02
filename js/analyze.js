@@ -124,6 +124,23 @@ const AN_SECTORS = {
   DVY:   { Utilities:25, Financials:20, Energy:15, ConsumerStaple:12, RealEstate:10, Healthcare:8, Technology:5, Industrials:3, Materials:2, ConsumerDisc:0, Communication:0 },
   HDV:   { Energy:22, Healthcare:18, ConsumerStaple:17, Utilities:12, Financials:10, Technology:8, Communication:7, Industrials:4, Materials:2, ConsumerDisc:0, RealEstate:0 },
   NOBL:  { ConsumerStaple:22, Industrials:20, Financials:14, Materials:12, Healthcare:11, ConsumerDisc:8, Technology:6, Energy:4, Utilities:2, Communication:1, RealEstate:0 },
+  // SPDR fixed income
+  SPYM:  { Bonds:100 },
+  SPSB:  { Bonds:100 },
+  SPIB:  { Bonds:100 },
+  SPLB:  { Bonds:100 },
+  SPAB:  { Bonds:100 },
+  // iShares short-duration / cash
+  SHYG:  { Bonds:100 },
+  FALN:  { Bonds:100 },
+  FLOT:  { Bonds:100 },
+  NEAR:  { Bonds:100 },
+  JPST:  { Bonds:100 },
+  MINT:  { Bonds:100 },
+  SHV:   { Bonds:100 },
+  BIL:   { Bonds:100 },
+  CLTL:  { Bonds:100 },
+  SGOV:  { Bonds:100 },
   // Commodities / multi-asset
   PDBC:  { Commodities:100 },
   DJP:   { Commodities:100 },
@@ -272,6 +289,9 @@ const AN_STOCK_SECTORS = {
   BIIB:'Healthcare', ILMN:'Healthcare', IQV:'Healthcare',
   ZBH:'Healthcare',  BAX:'Healthcare',  BDX:'Healthcare',
   IOVA:'Healthcare', MRNA:'Healthcare', PFE:'Healthcare',
+  HCA:'Healthcare',  CI:'Healthcare',   ELV:'Healthcare',
+  CNC:'Healthcare',  MOH:'Healthcare',  DXCM:'Healthcare',
+  PODD:'Healthcare', RMD:'Healthcare',  MTD:'Healthcare',
   // Industrials
   GE:'Industrials',  HON:'Industrials', UPS:'Industrials',
   CAT:'Industrials', DE:'Industrials',  MMM:'Industrials',
@@ -281,7 +301,9 @@ const AN_STOCK_SECTORS = {
   ROK:'Industrials', AME:'Industrials', CTAS:'Industrials',
   WM:'Industrials',  RSG:'Industrials', DAL:'Industrials',
   UAL:'Industrials', AAL:'Industrials', CSX:'Industrials',
-  NSC:'Industrials', UNP:'Industrials',
+  NSC:'Industrials', UNP:'Industrials', CARR:'Industrials',
+  OTIS:'Industrials', PWR:'Industrials', PCAR:'Industrials',
+  VRSK:'Industrials', EXPD:'Industrials', CHRW:'Industrials',
   // Energy
   XOM:'Energy',  CVX:'Energy',  COP:'Energy',
   EOG:'Energy',  SLB:'Energy',  MPC:'Energy',
@@ -289,12 +311,14 @@ const AN_STOCK_SECTORS = {
   HAL:'Energy',  BKR:'Energy',  DVN:'Energy',
   FANG:'Energy', OXY:'Energy',  HES:'Energy',
   WMB:'Energy',  KMI:'Energy',  OKE:'Energy',
+  TRGP:'Energy', LNG:'Energy',  CVI:'Energy',
   // Materials
   LIN:'Materials',  APD:'Materials',  SHW:'Materials',
   ECL:'Materials',  FCX:'Materials',  NEM:'Materials',
   NUE:'Materials',  VMC:'Materials',  MLM:'Materials',
   DD:'Materials',   DOW:'Materials',  LYB:'Materials',
   PPG:'Materials',  ALB:'Materials',  CF:'Materials',
+  MOS:'Materials',  FMC:'Materials',  IFF:'Materials',
   // Utilities
   NEE:'Utilities',  DUK:'Utilities',  SO:'Utilities',
   D:'Utilities',    AEP:'Utilities',  EXC:'Utilities',
@@ -307,6 +331,38 @@ const AN_STOCK_SECTORS = {
   EQIX:'RealEstate', PSA:'RealEstate', WELL:'RealEstate',
   DLR:'RealEstate',  SPG:'RealEstate', O:'RealEstate',
   VICI:'RealEstate', AVB:'RealEstate', EQR:'RealEstate',
+  ARE:'RealEstate',  MAA:'RealEstate', UDR:'RealEstate',
+  // Financials — additional
+  MA:'Financials',   V:'Financials',   PYPL:'Financials',
+  FI:'Financials',   FIS:'Financials', GPN:'Financials',
+  TROW:'Financials', BK:'Financials',  STT:'Financials',
+  NTRS:'Financials', RF:'Financials',  CFG:'Financials',
+  HBAN:'Financials', KEY:'Financials', MTB:'Financials',
+  CMA:'Financials',  FITB:'Financials','BRK B':'Financials',
+  // Consumer Discretionary — additional
+  DASH:'ConsumerDisc', LYFT:'ConsumerDisc', UBER:'ConsumerDisc',
+  ABNB:'ConsumerDisc', EXPE:'ConsumerDisc', TRIP:'ConsumerDisc',
+  RCL:'ConsumerDisc',  CCL:'ConsumerDisc',  NCLH:'ConsumerDisc',
+  MGM:'ConsumerDisc',  WYNN:'ConsumerDisc', LVS:'ConsumerDisc',
+  DRI:'ConsumerDisc',  MKC:'ConsumerDisc',
+  // Consumer Staples — additional
+  KR:'ConsumerStaple', WBA:'ConsumerStaple', CVS:'ConsumerStaple',
+  ADM:'ConsumerStaple', BG:'ConsumerStaple', INGR:'ConsumerStaple',
+  // Communication — additional
+  SNAP:'Communication', PINS:'Communication', RDDT:'Communication',
+  SPOT:'Communication', ZM:'Communication',
+  // Technology — additional
+  PLTR:'Technology', NET:'Technology',  DDOG:'Technology',
+  SNOW:'Technology', MDB:'Technology',  ZS:'Technology',
+  OKTA:'Technology', CRWD:'Technology', S:'Technology',
+  TTD:'Technology',  ROKU:'Technology', U:'Technology',
+  COIN:'Technology', HOOD:'Technology', SQ:'Technology',
+  SHOP:'Technology', MELI:'Technology', SE:'Technology',
+  // Fixed income ETFs — Schwab/iShares additional
+  SPYM:'Bonds', SHYG:'Bonds', FALN:'Bonds', DTSS:'Bonds',
+  SPSB:'Bonds', SPIB:'Bonds', SPLB:'Bonds', SPAB:'Bonds',
+  FLOT:'Bonds', NEAR:'Bonds', JPST:'Bonds', MINT:'Bonds',
+  SHV:'Bonds',  BIL:'Bonds',  CLTL:'Bonds', SGOV:'Bonds',
 };
 
 // For overlap analysis: individual stocks "hold" only themselves
@@ -398,8 +454,11 @@ async function _anFetchSector(symbol) {
 // Get single sector string for a symbol (stock or ETF)
 // Returns sector immediately from local data, OR kicks off async fetch and returns '⏳'
 function _anGetSector(symbol) {
+  // Normalise Schwab-style "BRK B" → "BRK.B" and similar space variants
+  const norm = symbol.replace(' ', '.');
   if (AN_STOCK_SECTORS[symbol]) return AN_STOCK_SECTORS[symbol];
-  const sectors = AN_SECTORS[symbol];
+  if (norm !== symbol && AN_STOCK_SECTORS[norm]) return AN_STOCK_SECTORS[norm];
+  const sectors = AN_SECTORS[symbol] || AN_SECTORS[norm];
   if (sectors) return Object.entries(sectors).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   // Check live cache
   if (symbol in AN_LIVE_SECTORS) return AN_LIVE_SECTORS[symbol] || '—';
