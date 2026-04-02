@@ -271,15 +271,90 @@ function _anGetHoldings(symbol) {
   if (AN_TOP_HOLDINGS[symbol]) return AN_TOP_HOLDINGS[symbol];
   // Stock: its holding is itself — catches overlap with ETFs that contain it
   if (AN_STOCK_SECTORS[symbol]) return [symbol];
+  if (AN_LIVE_SECTORS[symbol]) return [symbol]; // live-fetched stock
   return [];
 }
 
+// ---- LIVE SECTOR LOOKUP ----
+// Cache for symbols fetched from Yahoo Finance (persists for the session)
+const AN_LIVE_SECTORS = {};   // symbol → sector string  (after fetch)
+const AN_FETCH_PENDING = {};  // symbol → true  (in-flight, avoid duplicate requests)
+
+// Map Yahoo Finance sector/category strings to our internal names
+function _anMapYahooSector(raw) {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (r.includes('technology') || r.includes('tech'))        return 'Technology';
+  if (r.includes('communication') || r.includes('telecom'))  return 'Communication';
+  if (r.includes('consumer discret') || r.includes('cyclical')) return 'ConsumerDisc';
+  if (r.includes('consumer staple') || r.includes('defensive')) return 'ConsumerStaple';
+  if (r.includes('financial'))                               return 'Financials';
+  if (r.includes('health'))                                  return 'Healthcare';
+  if (r.includes('industrial'))                              return 'Industrials';
+  if (r.includes('energy'))                                  return 'Energy';
+  if (r.includes('material'))                                return 'Materials';
+  if (r.includes('utilit'))                                  return 'Utilities';
+  if (r.includes('real estate') || r.includes('realty'))     return 'RealEstate';
+  if (r.includes('bond') || r.includes('fixed income') || r.includes('government') || r.includes('treasury')) return 'Bonds';
+  if (r.includes('commodit') || r.includes('gold') || r.includes('silver') || r.includes('metal')) return 'Commodities';
+  return null;
+}
+
+// Fetch sector for an unknown symbol from Yahoo Finance public API.
+// Calls renderAnalyzerTable() when the result arrives so the row updates live.
+async function _anFetchSector(symbol) {
+  if (AN_FETCH_PENDING[symbol]) return;
+  AN_FETCH_PENDING[symbol] = true;
+  try {
+    // Yahoo Finance v8 quoteSummary — works without auth, no CORS issues via proxy
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    // quoteType tells us if it's ETF, EQUITY, etc.
+    const quoteType = meta?.instrumentType || '';
+    // Try category from a second endpoint: quoteSummary assetProfile / fundProfile
+    const url2 = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,fundProfile,quoteType`;
+    const r2 = await fetch(url2, { signal: AbortSignal.timeout(6000) });
+    if (r2.ok) {
+      const d2 = await r2.json();
+      const result = d2?.quoteSummary?.result?.[0];
+      const sector    = result?.assetProfile?.sector;         // individual stocks
+      const category  = result?.fundProfile?.categoryName;    // ETFs/funds
+      const qt        = result?.quoteType?.quoteType;
+      const mapped = _anMapYahooSector(sector || category);
+      if (mapped) {
+        AN_LIVE_SECTORS[symbol] = mapped;
+        renderAnalyzerTable();
+        return;
+      }
+    }
+    // Fallback: infer from exchange/type via chart meta
+    if (quoteType === 'ETF') {
+      AN_LIVE_SECTORS[symbol] = '—'; // ETF but unknown sector
+    } else if (quoteType === 'EQUITY') {
+      AN_LIVE_SECTORS[symbol] = '—'; // stock but unknown sector
+    }
+    renderAnalyzerTable();
+  } catch(e) {
+    AN_LIVE_SECTORS[symbol] = null; // mark as failed, won't retry
+  } finally {
+    delete AN_FETCH_PENDING[symbol];
+  }
+}
+
 // Get single sector string for a symbol (stock or ETF)
+// Returns sector immediately from local data, OR kicks off async fetch and returns '⏳'
 function _anGetSector(symbol) {
   if (AN_STOCK_SECTORS[symbol]) return AN_STOCK_SECTORS[symbol];
   const sectors = AN_SECTORS[symbol];
-  if (!sectors) return null;
-  return Object.entries(sectors).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  if (sectors) return Object.entries(sectors).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  // Check live cache
+  if (symbol in AN_LIVE_SECTORS) return AN_LIVE_SECTORS[symbol] || '—';
+  // Not known locally and not yet fetched — kick off background fetch
+  _anFetchSector(symbol);
+  return '⏳';
 }
 
 const AN_SECTOR_COLORS = {
@@ -932,9 +1007,9 @@ function _computeSectorTotals(positions, total) {
   const sectorTotals = {};
   for (const pos of positions) {
     const w = pos.value / total;
-    // Individual stocks: assign 100% to their single sector
-    const stockSec = AN_STOCK_SECTORS[pos.symbol];
-    if (stockSec) {
+    // Individual stocks (local or live-fetched): assign 100% to their single sector
+    const stockSec = AN_STOCK_SECTORS[pos.symbol] || AN_LIVE_SECTORS[pos.symbol];
+    if (stockSec && stockSec !== '—') {
       sectorTotals[stockSec] = (sectorTotals[stockSec] || 0) + w * 100;
       continue;
     }
