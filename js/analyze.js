@@ -529,7 +529,7 @@ function renderAnalyzerTable() {
       ? `<span style="background:#fed7d7;color:#c53030;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;">⚠ ${overlapCount} overlap${overlapCount>1?'s':''}</span>`
       : `<span style="background:#c6f6d5;color:#276749;border-radius:8px;padding:2px 8px;font-size:11px;">✓ Unique</span>`;
 
-    const valueCell = (pos.isManual && anMode === 'manual')
+    const valueCell = pos.isManual
       ? `<td style="text-align:right;">
            <input type="text" inputmode="numeric" id="anVal_${pos.symbol}"
              value="${pos.value > 0 ? Math.round(pos.value) : ''}" placeholder="e.g. 25000"
