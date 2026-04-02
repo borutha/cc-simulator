@@ -58,6 +58,11 @@ const AN_SECTORS = {
   AMZY:  { ConsumerDisc:55, Technology:45, Financials:0, Healthcare:0, Industrials:0, Communication:0, ConsumerStaple:0, Energy:0, Materials:0, Utilities:0, RealEstate:0 },
   YMAX:  { Technology:40, Communication:20, ConsumerDisc:15, Financials:10, Healthcare:5, Industrials:5, ConsumerStaple:3, Energy:2, Materials:0, Utilities:0, RealEstate:0 },
   YMAG:  { Technology:50, Communication:25, ConsumerDisc:15, Financials:5, Healthcare:3, Industrials:2, ConsumerStaple:0, Energy:0, Materials:0, Utilities:0, RealEstate:0 },
+  // Vanguard international / real estate
+  VWO:   { Financials:22, Technology:18, ConsumerDisc:13, ConsumerStaple:8, Materials:7, Industrials:7, Energy:6, Communication:6, Healthcare:5, Utilities:4, RealEstate:4 },
+  VNQ:   { RealEstate:100 },
+  VNQI:  { RealEstate:100 },
+  VSS:   { Financials:18, Industrials:16, Technology:12, ConsumerDisc:11, Healthcare:10, Materials:9, ConsumerStaple:7, Energy:5, Utilities:5, RealEstate:4, Communication:3 },
   // Schwab broad market
   SCHA:  { Financials:17, Industrials:16, Healthcare:14, Technology:12, ConsumerDisc:11, Energy:7, Materials:5, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:3 },
   SCHB:  { Technology:27, Healthcare:13, Financials:13, ConsumerDisc:11, Industrials:10, Communication:9, ConsumerStaple:6, Energy:4, Materials:3, Utilities:2, RealEstate:2 },
@@ -300,45 +305,52 @@ function _anMapYahooSector(raw) {
   return null;
 }
 
-// Fetch sector for an unknown symbol from Yahoo Finance public API.
-// Calls renderAnalyzerTable() when the result arrives so the row updates live.
+// Fetch sector for an unknown symbol.
+// Yahoo Finance blocks direct browser requests (CORS), so we route through
+// allorigins.win (free CORS proxy) → falls back to financialmodelingprep.com.
 async function _anFetchSector(symbol) {
   if (AN_FETCH_PENDING[symbol]) return;
   AN_FETCH_PENDING[symbol] = true;
   try {
-    // Yahoo Finance v8 quoteSummary — works without auth, no CORS issues via proxy
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const meta = data?.chart?.result?.[0]?.meta;
-    // quoteType tells us if it's ETF, EQUITY, etc.
-    const quoteType = meta?.instrumentType || '';
-    // Try category from a second endpoint: quoteSummary assetProfile / fundProfile
-    const url2 = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,fundProfile,quoteType`;
-    const r2 = await fetch(url2, { signal: AbortSignal.timeout(6000) });
-    if (r2.ok) {
-      const d2 = await r2.json();
-      const result = d2?.quoteSummary?.result?.[0];
-      const sector    = result?.assetProfile?.sector;         // individual stocks
-      const category  = result?.fundProfile?.categoryName;    // ETFs/funds
-      const qt        = result?.quoteType?.quoteType;
-      const mapped = _anMapYahooSector(sector || category);
-      if (mapped) {
-        AN_LIVE_SECTORS[symbol] = mapped;
-        renderAnalyzerTable();
-        return;
+    // --- Attempt 1: Yahoo Finance via allorigins CORS proxy ---
+    const yahooUrl = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=assetProfile,fundProfile,quoteType`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+    try {
+      const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+      if (r.ok) {
+        const outer = await r.json();
+        const d = JSON.parse(outer.contents || '{}');
+        const result = d?.quoteSummary?.result?.[0];
+        const sector   = result?.assetProfile?.sector;
+        const category = result?.fundProfile?.categoryName;
+        const mapped   = _anMapYahooSector(sector || category);
+        if (mapped) {
+          AN_LIVE_SECTORS[symbol] = mapped;
+          renderAnalyzerTable();
+          return;
+        }
       }
-    }
-    // Fallback: infer from exchange/type via chart meta
-    if (quoteType === 'ETF') {
-      AN_LIVE_SECTORS[symbol] = '—'; // ETF but unknown sector
-    } else if (quoteType === 'EQUITY') {
-      AN_LIVE_SECTORS[symbol] = '—'; // stock but unknown sector
-    }
+    } catch(e) { /* fall through */ }
+
+    // --- Attempt 2: Financial Modeling Prep (free, no key, CORS-open) ---
+    try {
+      const fmpUrl = `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(symbol)}?apikey=demo`;
+      const r2 = await fetch(fmpUrl, { signal: AbortSignal.timeout(8000) });
+      if (r2.ok) {
+        const data = await r2.json();
+        const profile = Array.isArray(data) ? data[0] : data;
+        const mapped = _anMapYahooSector(profile?.sector || profile?.industry || '');
+        if (mapped) {
+          AN_LIVE_SECTORS[symbol] = mapped;
+          renderAnalyzerTable();
+          return;
+        }
+      }
+    } catch(e) { /* fall through */ }
+
+    // Both failed — mark so we don't retry
+    AN_LIVE_SECTORS[symbol] = null;
     renderAnalyzerTable();
-  } catch(e) {
-    AN_LIVE_SECTORS[symbol] = null; // mark as failed, won't retry
   } finally {
     delete AN_FETCH_PENDING[symbol];
   }
