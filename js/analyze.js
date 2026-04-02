@@ -14,7 +14,9 @@
 let anPositions = [];   // { symbol, desc, value, pct, isManual }
 let anMode      = null; // 'csv' | 'manual' | null
 let anRaw       = null;
-let anFilter    = 'ALL';
+let anFilter       = 'ALL';
+let anSectorFilter = 'ALL';   // sector filter for table
+let anOverlapFilter = 'ALL';  // overlap filter: ALL | overlap | unique
 let anSectorChart    = null;
 let anOverlapChart   = null;
 let anGrowthChart1yr = null;
@@ -122,6 +124,43 @@ const AN_SECTORS = {
   DVY:   { Utilities:25, Financials:20, Energy:15, ConsumerStaple:12, RealEstate:10, Healthcare:8, Technology:5, Industrials:3, Materials:2, ConsumerDisc:0, Communication:0 },
   HDV:   { Energy:22, Healthcare:18, ConsumerStaple:17, Utilities:12, Financials:10, Technology:8, Communication:7, Industrials:4, Materials:2, ConsumerDisc:0, RealEstate:0 },
   NOBL:  { ConsumerStaple:22, Industrials:20, Financials:14, Materials:12, Healthcare:11, ConsumerDisc:8, Technology:6, Energy:4, Utilities:2, Communication:1, RealEstate:0 },
+  // Commodities / multi-asset
+  PDBC:  { Commodities:100 },
+  DJP:   { Commodities:100 },
+  GSG:   { Commodities:100 },
+  PDPX:  { Commodities:100 },
+  // Schwab fixed income / TIPS
+  SCHP:  { Bonds:100 },
+  SCHR:  { Bonds:100 },
+  SCHQ:  { Bonds:100 },
+  // iShares fixed income / credit
+  USIG:  { Bonds:100 },
+  VCIT:  { Bonds:100 },
+  VCSH:  { Bonds:100 },
+  VCLT:  { Bonds:100 },
+  EBND:  { Bonds:100 },
+  CEMB:  { Bonds:100 },
+  EMB:   { Bonds:100 },
+  IAGG:  { Bonds:100 },
+  IGOV:  { Bonds:100 },
+  SUB:   { Bonds:100 },
+  // Schwab real estate
+  SCHH:  { RealEstate:100 },
+  // Additional Vanguard
+  VTIP:  { Bonds:100 },
+  VTES:  { Bonds:100 },
+  VWOB:  { Bonds:100 },
+  // Factor / smart beta
+  QUAL:  { Technology:28, Financials:16, Healthcare:14, ConsumerDisc:11, Communication:9, Industrials:8, ConsumerStaple:6, Energy:4, Materials:2, Utilities:1, RealEstate:1 },
+  MTUM:  { Technology:32, Financials:18, Healthcare:12, ConsumerDisc:11, Communication:10, Industrials:8, ConsumerStaple:4, Energy:3, Materials:1, Utilities:1, RealEstate:0 },
+  VLUE:  { Financials:24, Healthcare:18, Energy:13, ConsumerStaple:12, Industrials:10, Technology:9, Utilities:6, Materials:4, ConsumerDisc:3, Communication:1, RealEstate:0 },
+  USMV:  { Healthcare:20, Financials:18, Technology:16, ConsumerStaple:14, Utilities:10, Industrials:9, ConsumerDisc:6, Communication:4, Materials:2, Energy:1, RealEstate:0 },
+  SIZE:  { Financials:18, Industrials:16, Technology:14, Healthcare:13, ConsumerDisc:11, Energy:7, Materials:6, ConsumerStaple:5, Utilities:5, RealEstate:3, Communication:2 },
+  // International equity
+  EFA:   { Financials:20, Industrials:15, Technology:12, ConsumerDisc:11, Healthcare:11, Materials:8, ConsumerStaple:8, Communication:6, Energy:5, Utilities:4, RealEstate:0 },
+  EEM:   { Technology:22, Financials:21, ConsumerDisc:14, ConsumerStaple:7, Materials:7, Industrials:6, Communication:6, Energy:6, Healthcare:5, Utilities:4, RealEstate:2 },
+  IEFA:  { Financials:20, Industrials:15, Technology:12, ConsumerDisc:11, Healthcare:11, Materials:8, ConsumerStaple:8, Communication:6, Energy:5, Utilities:4, RealEstate:0 },
+  IEMG:  { Technology:22, Financials:21, ConsumerDisc:14, ConsumerStaple:7, Materials:7, Industrials:6, Communication:6, Energy:6, Healthcare:5, Utilities:4, RealEstate:2 },
 };
 
 // Top-5 holdings for overlap analysis
@@ -577,11 +616,50 @@ function _recalcAnPct() {
 
 // ---- RENDER TABLE ----
 
+function applyAnSectorFilter() {
+  anSectorFilter = document.getElementById('anSectorFilter').value;
+  renderAnalyzerTable();
+}
+
+function applyAnOverlapFilter() {
+  anOverlapFilter = document.getElementById('anOverlapFilter').value;
+  renderAnalyzerTable();
+}
+
+function _buildSectorFilterOptions() {
+  const sectors = [...new Set(
+    anPositions.map(p => _anGetSector(p.symbol)).filter(s => s && s !== '⏳' && s !== '—')
+  )].sort();
+  const cur = anSectorFilter;
+  let opts = `<option value="ALL"${cur==='ALL'?' selected':''}>All Sectors</option>`;
+  for (const s of sectors) {
+    opts += `<option value="${s}"${cur===s?' selected':''}>${s}</option>`;
+  }
+  return opts;
+}
+
 function renderAnalyzerTable() {
   _recalcAnPct();
   const total     = anGetTotal();
   const container = document.getElementById('anTable');
   if (!container) return;
+
+  // Build per-position overlap counts first (needed for filter + display)
+  const overlapCounts = {};
+  for (const pos of anPositions) overlapCounts[pos.symbol] = _countOverlap(pos.symbol);
+
+  // Apply sector + overlap filters to decide which rows to show
+  const visiblePositions = anPositions.filter(pos => {
+    if (anSectorFilter !== 'ALL') {
+      const s = _anGetSector(pos.symbol);
+      if (s !== anSectorFilter) return false;
+    }
+    if (anOverlapFilter === 'overlap' && overlapCounts[pos.symbol] === 0) return false;
+    if (anOverlapFilter === 'unique'  && overlapCounts[pos.symbol] >  0) return false;
+    return true;
+  });
+
+  const hiddenCount = anPositions.length - visiblePositions.length;
 
   let html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -589,6 +667,19 @@ function renderAnalyzerTable() {
         <span style="font-size:13px;color:#4a5568;">Total Portfolio Value: </span>
         <strong style="font-size:16px;color:#2b6cb0;">${anFmt$(total)}</strong>
         <span style="font-size:12px;color:#718096;margin-left:10px;">${anPositions.length} positions</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="anSectorFilter" onchange="applyAnSectorFilter()"
+          style="font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;cursor:pointer;">
+          ${_buildSectorFilterOptions()}
+        </select>
+        <select id="anOverlapFilter" onchange="applyAnOverlapFilter()"
+          style="font-size:12px;border:1px solid #e2e8f0;border-radius:6px;padding:4px 8px;background:#fff;cursor:pointer;">
+          <option value="ALL"${anOverlapFilter==='ALL'?' selected':''}>All Overlap</option>
+          <option value="overlap"${anOverlapFilter==='overlap'?' selected':''}>⚠ Has Overlap</option>
+          <option value="unique"${anOverlapFilter==='unique'?' selected':''}>✓ Unique Only</option>
+        </select>
+        ${hiddenCount > 0 ? `<span style="font-size:11px;color:#718096;">${hiddenCount} hidden by filter</span>` : ''}
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -608,10 +699,10 @@ function renderAnalyzerTable() {
       <tbody>
   `;
 
-  for (const pos of anPositions) {
+  for (const pos of visiblePositions) {
     const sectorName  = _anGetSector(pos.symbol) || '—';
     const sectorColor = AN_SECTOR_COLORS[sectorName] || '#a0aec0';
-    const overlapCount = _countOverlap(pos.symbol);
+    const overlapCount = overlapCounts[pos.symbol];
     const overlapBadge = overlapCount > 0
       ? `<span style="background:#fed7d7;color:#c53030;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;">⚠ ${overlapCount} overlap${overlapCount>1?'s':''}</span>`
       : `<span style="background:#c6f6d5;color:#276749;border-radius:8px;padding:2px 8px;font-size:11px;">✓ Unique</span>`;
@@ -641,6 +732,10 @@ function renderAnalyzerTable() {
         <td></td>
       </tr>
     `;
+  }
+
+  if (visiblePositions.length === 0) {
+    html += `<tr><td colspan="8" style="padding:20px;text-align:center;color:#718096;">No positions match the current filters.</td></tr>`;
   }
 
   html += `</tbody></table></div>`;
