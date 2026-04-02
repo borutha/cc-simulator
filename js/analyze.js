@@ -616,7 +616,7 @@ function renderAnOverlapMatrix(positions) {
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
       <thead>
         <tr>
-          <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0;">ETF Pair</th>
+          <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Position Pair</th>
           <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Shared Top Holdings</th>
           <th style="text-align:center;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Overlap Score</th>
           <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0;">Assessment</th>
@@ -642,12 +642,13 @@ function renderAnOverlapMatrix(positions) {
       const denom  = (isStockA || isStockB) ? 1 : 5;
       const score  = Math.min(100, Math.round((shared.length / denom) * 100));
 
+      // Only show Medium or High overlap pairs
+      if (score < 20) continue;
+
       hasAnyOverlap = true;
       let level, color, bg;
       if (score >= 60)      { level = '🔴 High';   color = '#c53030'; bg = '#fff5f5'; }
-      else if (score >= 20) { level = '🟡 Medium'; color = '#744210'; bg = '#fffff0'; }
-      else if (score > 0)   { level = '🟡 Low-Med';color = '#744210'; bg = '#fffff0'; }
-      else                  { level = '🟢 Low';    color = '#276749'; bg = '#f0fff4'; }
+      else                  { level = '🟡 Medium'; color = '#744210'; bg = '#fffff0'; }
 
       const pairLabel = (isStockA ? '🏢 ' : '') + a + ' ↔ ' + (isStockB ? '🏢 ' : '') + b;
       const sharedStr = shared.length ? shared.join(', ') : 'None';
@@ -671,7 +672,7 @@ function renderAnOverlapMatrix(positions) {
   }
 
   if (!hasAnyOverlap) {
-    html += `<tr><td colspan="4" style="padding:12px;color:#718096;text-align:center;">No overlap data available for these tickers.</td></tr>`;
+    html += `<tr><td colspan="4" style="padding:16px;color:#276749;text-align:center;font-weight:600;">✅ No medium or high overlap detected — your positions look well-diversified.</td></tr>`;
   }
 
   html += `</tbody></table>`;
