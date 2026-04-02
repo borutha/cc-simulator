@@ -84,3 +84,95 @@ new MutationObserver(() => {
 }).observe(document.getElementById('resultsPanel'), { childList: true, subtree: false, attributes: true, attributeFilter: ['style'] });
 
 // ============================================================
+// SHARED HOLDINGS FILE PARSER  (Schwab XLSX + Fidelity CSV)
+// Both return: { rawPositions, accounts }
+// ============================================================
+function parseHoldingsXLSX(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data     = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+        const sheet    = workbook.Sheets[workbook.SheetNames[0]];
+        const rows     = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+        // Find header row: look for 'Security ID'
+        let headerIdx = -1;
+        for (let i = 0; i < Math.min(rows.length, 30); i++) {
+          if (rows[i] && rows[i].some(c => String(c || '').trim() === 'Security ID')) {
+            headerIdx = i; break;
+          }
+        }
+        if (headerIdx < 0) { reject(new Error('Cannot find "Security ID" header row')); return; }
+
+        const headers = rows[headerIdx].map(c => String(c || '').trim());
+        const col = name => headers.findIndex(h => h === name);
+
+        const C = {
+          ticker  : col('Security ID'),
+          acctNum : col('Account Number'),
+          acctName: col('Account Nickname/Title'),
+          desc    : col('Description'),
+          qty     : col('Quantity'),
+          price   : col('Price'),
+          value   : col('Market Value'),
+        };
+        // Positional fallbacks (col B=index 1 in Schwab layout)
+        if (C.ticker   < 0) C.ticker   = 1;
+        if (C.acctNum  < 0) C.acctNum  = 3;
+        if (C.acctName < 0) C.acctName = 4;
+        if (C.desc     < 0) C.desc     = 5;
+        if (C.qty      < 0) C.qty      = 7;
+        if (C.price    < 0) C.price    = 8;
+        if (C.value    < 0) C.value    = 13;
+
+        const rawPositions = [];
+        const accountSet   = new Set();
+
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row) continue;
+          const ticker = String(row[C.ticker] || '').trim().toUpperCase();
+          if (!ticker || ticker.length > 10 || /^\d/.test(ticker)) continue;
+
+          const acct     = String(row[C.acctNum]  || '').trim();
+          const acctName = String(row[C.acctName] || acct).trim();
+          const desc     = String(row[C.desc]     || ticker).trim();
+          const qty      = parseFloat(row[C.qty])  || 0;
+          const price    = parseFloat(row[C.price])|| 0;
+          let   value    = parseFloat(row[C.value]);
+          if (isNaN(value)) value = parseFloat(String(row[C.value]||'').replace(/[$,]/g,''))||0;
+          if (value <= 0 && qty > 0 && price > 0) value = qty * price;
+          if (value <= 0) continue;
+
+          rawPositions.push({ acct, acctName, symbol: ticker, desc, qty, value });
+          if (acct) accountSet.add(acct);
+        }
+        resolve({ rawPositions, accounts: [...accountSet] });
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('File read error'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Unified dispatcher: XLSX or CSV → { rawPositions, accounts }
+async function parseHoldingsFile(file) {
+  const name = (file.name || '').toLowerCase();
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    return parseHoldingsXLSX(file);
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const result = parseRebCSV(e.target.result);
+        if (result && result.rawPositions.length) resolve(result);
+        else reject(new Error('No positions found in CSV'));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('File read error'));
+    reader.readAsText(file);
+  });
+}

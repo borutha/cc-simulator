@@ -140,26 +140,23 @@ function anSetMode(mode) {
 
 // ---- CSV LOADING (same parser as rebalance) ----
 
-function handleAnFile(e) {
-  const file = e.target.files[0];
+async function handleAnFile(e) {
+  const file  = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const result = parseRebCSV(ev.target.result); // reuse rebalance parser
-    if (!result || !result.rawPositions.length) {
-      document.getElementById('anUploadError').textContent = '⚠️ Could not parse file. Make sure it is a Fidelity CSV export.';
-      document.getElementById('anUploadError').style.display = 'block';
-      return;
-    }
-    document.getElementById('anUploadError').style.display = 'none';
+  const errEl = document.getElementById('anUploadError');
+  errEl.style.display = 'none';
+  try {
+    const result = await parseHoldingsFile(file);
     anRaw = result;
     populateAnAccountFilter(result.accounts);
     document.getElementById('anFilterRow').style.display = 'flex';
     anPositions = _anMergePositions(result.rawPositions, 'ALL');
     document.getElementById('anContent').style.display = 'block';
     renderAnalyzerTable();
-  };
-  reader.readAsText(file);
+  } catch(err) {
+    errEl.textContent = '⚠️ Could not parse file: ' + err.message + '. Use a Fidelity CSV or Schwab XLSX export.';
+    errEl.style.display = 'block';
+  }
 }
 
 function populateAnAccountFilter(accounts) {

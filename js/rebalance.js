@@ -151,19 +151,13 @@ function rebSetMode(mode) {
 
 // ---- CSV MODE ----
 
-function handleRebFile(e) {
+async function handleRebFile(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const result = parseRebCSV(ev.target.result);
-    if (!result || !result.rawPositions.length) {
-      document.getElementById('rebUploadError').textContent =
-        'Could not parse file. Please use a Fidelity portfolio CSV export.';
-      document.getElementById('rebUploadError').style.display = 'block';
-      return;
-    }
-    document.getElementById('rebUploadError').style.display = 'none';
+  const errEl = document.getElementById('rebUploadError');
+  errEl.style.display = 'none';
+  try {
+    const result = await parseHoldingsFile(file);
     rebRaw    = result;
     rebFilter = 'ALL';
     rebCash   = 0;
@@ -178,8 +172,10 @@ function handleRebFile(e) {
     document.getElementById('rebAddSection').style.display = 'flex';
     document.getElementById('rebBtSection').style.display  = 'block';
     renderRebalance();
-  };
-  reader.readAsText(file);
+  } catch(err) {
+    errEl.textContent = '⚠️ Could not parse file: ' + err.message + '. Use a Fidelity CSV or Schwab XLSX export.';
+    errEl.style.display = 'block';
+  }
 }
 
 function applyRebAccountFilter() {
