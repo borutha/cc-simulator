@@ -93,6 +93,112 @@ const AN_TOP_HOLDINGS = {
   YMAG:  ['MSFT','NVDA','AAPL','META','AMZN'],
 };
 
+// Individual stock sector lookup (single dominant sector per ticker)
+// Covers S&P 500 large-caps + common holdings in Schwab portfolios
+const AN_STOCK_SECTORS = {
+  // Technology
+  AAPL:'Technology', MSFT:'Technology', NVDA:'Technology', AVGO:'Technology',
+  AMD:'Technology',  INTC:'Technology', ORCL:'Technology', CRM:'Technology',
+  ADBE:'Technology', CSCO:'Technology', QCOM:'Technology', TXN:'Technology',
+  IBM:'Technology',  ACN:'Technology',  NOW:'Technology',  INTU:'Technology',
+  AMAT:'Technology', LRCX:'Technology', KLAC:'Technology', MU:'Technology',
+  PANW:'Technology', CDNS:'Technology', SNPS:'Technology', FTNT:'Technology',
+  HPQ:'Technology',  DELL:'Technology', STX:'Technology',  WDC:'Technology',
+  // Communication
+  GOOGL:'Communication', GOOG:'Communication', META:'Communication',
+  NFLX:'Communication',  DIS:'Communication',  CMCSA:'Communication',
+  T:'Communication',     VZ:'Communication',   TMUS:'Communication',
+  CHTR:'Communication',  WBD:'Communication',  PARA:'Communication',
+  // Consumer Discretionary
+  AMZN:'ConsumerDisc', TSLA:'ConsumerDisc', HD:'ConsumerDisc',
+  MCD:'ConsumerDisc',  NKE:'ConsumerDisc',  SBUX:'ConsumerDisc',
+  LOW:'ConsumerDisc',  TJX:'ConsumerDisc',  BKNG:'ConsumerDisc',
+  EBAY:'ConsumerDisc', F:'ConsumerDisc',    GM:'ConsumerDisc',
+  ROST:'ConsumerDisc', ORLY:'ConsumerDisc', AZO:'ConsumerDisc',
+  YUM:'ConsumerDisc',  CMG:'ConsumerDisc',  DHI:'ConsumerDisc',
+  LEN:'ConsumerDisc',  PHM:'ConsumerDisc',  APTV:'ConsumerDisc',
+  // Consumer Staples
+  WMT:'ConsumerStaple', COST:'ConsumerStaple', PG:'ConsumerStaple',
+  KO:'ConsumerStaple',  PEP:'ConsumerStaple',  PM:'ConsumerStaple',
+  MO:'ConsumerStaple',  MDLZ:'ConsumerStaple', CL:'ConsumerStaple',
+  KMB:'ConsumerStaple', GIS:'ConsumerStaple',  K:'ConsumerStaple',
+  HSY:'ConsumerStaple', EL:'ConsumerStaple',   SYY:'ConsumerStaple',
+  CAG:'ConsumerStaple', CPB:'ConsumerStaple',  TSN:'ConsumerStaple',
+  // Financials
+  BRK:'Financials',   'BRK.B':'Financials', 'BRK.A':'Financials',
+  JPM:'Financials',   BAC:'Financials',   WFC:'Financials',
+  GS:'Financials',    MS:'Financials',    C:'Financials',
+  AXP:'Financials',   BLK:'Financials',   SCHW:'Financials',
+  USB:'Financials',   PNC:'Financials',   TFC:'Financials',
+  COF:'Financials',   DFS:'Financials',   SYF:'Financials',
+  ICE:'Financials',   CME:'Financials',   MCO:'Financials',
+  SPGI:'Financials',  AON:'Financials',   MMC:'Financials',
+  AIG:'Financials',   MET:'Financials',   PRU:'Financials',
+  AFL:'Financials',   ALL:'Financials',   PGR:'Financials',
+  // Healthcare
+  UNH:'Healthcare',  JNJ:'Healthcare',  LLY:'Healthcare',
+  ABBV:'Healthcare', MRK:'Healthcare',  ABT:'Healthcare',
+  TMO:'Healthcare',  DHR:'Healthcare',  BMY:'Healthcare',
+  AMGN:'Healthcare', GILD:'Healthcare', CVS:'Healthcare',
+  MDT:'Healthcare',  SYK:'Healthcare',  BSX:'Healthcare',
+  ISRG:'Healthcare', REGN:'Healthcare', VRTX:'Healthcare',
+  BIIB:'Healthcare', ILMN:'Healthcare', IQV:'Healthcare',
+  ZBH:'Healthcare',  BAX:'Healthcare',  BDX:'Healthcare',
+  IOVA:'Healthcare', MRNA:'Healthcare', PFE:'Healthcare',
+  // Industrials
+  GE:'Industrials',  HON:'Industrials', UPS:'Industrials',
+  CAT:'Industrials', DE:'Industrials',  MMM:'Industrials',
+  BA:'Industrials',  RTX:'Industrials', LMT:'Industrials',
+  NOC:'Industrials', GD:'Industrials',  FDX:'Industrials',
+  EMR:'Industrials', ETN:'Industrials', PH:'Industrials',
+  ROK:'Industrials', AME:'Industrials', CTAS:'Industrials',
+  WM:'Industrials',  RSG:'Industrials', DAL:'Industrials',
+  UAL:'Industrials', AAL:'Industrials', CSX:'Industrials',
+  NSC:'Industrials', UNP:'Industrials',
+  // Energy
+  XOM:'Energy',  CVX:'Energy',  COP:'Energy',
+  EOG:'Energy',  SLB:'Energy',  MPC:'Energy',
+  PSX:'Energy',  VLO:'Energy',  PXD:'Energy',
+  HAL:'Energy',  BKR:'Energy',  DVN:'Energy',
+  FANG:'Energy', OXY:'Energy',  HES:'Energy',
+  WMB:'Energy',  KMI:'Energy',  OKE:'Energy',
+  // Materials
+  LIN:'Materials',  APD:'Materials',  SHW:'Materials',
+  ECL:'Materials',  FCX:'Materials',  NEM:'Materials',
+  NUE:'Materials',  VMC:'Materials',  MLM:'Materials',
+  DD:'Materials',   DOW:'Materials',  LYB:'Materials',
+  PPG:'Materials',  ALB:'Materials',  CF:'Materials',
+  // Utilities
+  NEE:'Utilities',  DUK:'Utilities',  SO:'Utilities',
+  D:'Utilities',    AEP:'Utilities',  EXC:'Utilities',
+  SRE:'Utilities',  PEG:'Utilities',  XEL:'Utilities',
+  WEC:'Utilities',  ES:'Utilities',   AWK:'Utilities',
+  WTRG:'Utilities', ETR:'Utilities',  FE:'Utilities',
+  PCG:'Utilities',  EIX:'Utilities',  PPL:'Utilities',
+  // Real Estate
+  AMT:'RealEstate',  PLD:'RealEstate', CCI:'RealEstate',
+  EQIX:'RealEstate', PSA:'RealEstate', WELL:'RealEstate',
+  DLR:'RealEstate',  SPG:'RealEstate', O:'RealEstate',
+  VICI:'RealEstate', AVB:'RealEstate', EQR:'RealEstate',
+};
+
+// For overlap analysis: individual stocks "hold" only themselves
+// This lets us detect when a stock you own directly is also inside an ETF
+function _anGetHoldings(symbol) {
+  if (AN_TOP_HOLDINGS[symbol]) return AN_TOP_HOLDINGS[symbol];
+  // Stock: its holding is itself — catches overlap with ETFs that contain it
+  if (AN_STOCK_SECTORS[symbol]) return [symbol];
+  return [];
+}
+
+// Get single sector string for a symbol (stock or ETF)
+function _anGetSector(symbol) {
+  if (AN_STOCK_SECTORS[symbol]) return AN_STOCK_SECTORS[symbol];
+  const sectors = AN_SECTORS[symbol];
+  if (!sectors) return null;
+  return Object.entries(sectors).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+}
+
 const AN_SECTOR_COLORS = {
   Technology:     '#4299e1',
   Communication:  '#9f7aea',
@@ -333,9 +439,7 @@ function renderAnalyzerTable() {
   `;
 
   for (const pos of anPositions) {
-    const sectors = AN_SECTORS[pos.symbol];
-    const topSector = sectors ? Object.entries(sectors).sort((a,b) => b[1]-a[1])[0] : null;
-    const sectorName = topSector ? topSector[0] : '—';
+    const sectorName  = _anGetSector(pos.symbol) || '—';
     const sectorColor = AN_SECTOR_COLORS[sectorName] || '#a0aec0';
     const overlapCount = _countOverlap(pos.symbol);
     const overlapBadge = overlapCount > 0
@@ -378,14 +482,17 @@ function renderAnalyzerTable() {
 }
 
 function _countOverlap(sym) {
-  const holdings = AN_TOP_HOLDINGS[sym] || [];
+  const holdings = _anGetHoldings(sym);
   if (!holdings.length) return 0;
+  const isStock = !!AN_STOCK_SECTORS[sym]; // single stock: threshold = 1
   let count = 0;
   for (const other of anPositions) {
     if (other.symbol === sym) continue;
-    const otherHoldings = AN_TOP_HOLDINGS[other.symbol] || [];
+    const otherHoldings = _anGetHoldings(other.symbol);
     const shared = holdings.filter(h => otherHoldings.includes(h));
-    if (shared.length >= 2) count++;
+    // Stock-in-ETF: 1 match is enough (you own both directly + via ETF)
+    // ETF-ETF: require 2+ shared top holdings
+    if (shared.length >= (isStock ? 1 : 2)) count++;
   }
   return count;
 }
@@ -523,25 +630,34 @@ function renderAnOverlapMatrix(positions) {
   for (let i = 0; i < tickers.length; i++) {
     for (let j = i + 1; j < tickers.length; j++) {
       const a = tickers[i], b = tickers[j];
-      const aH = AN_TOP_HOLDINGS[a] || [];
-      const bH = AN_TOP_HOLDINGS[b] || [];
-      const shared = [...new Set(aH.filter(h => bH.includes(h)))];
-      const score  = Math.round((shared.length / 5) * 100);
-
+      const aH = _anGetHoldings(a);
+      const bH = _anGetHoldings(b);
       if (!aH.length && !bH.length) continue;
+
+      const shared   = [...new Set(aH.filter(h => bH.includes(h)))];
+      const isStockA = !!AN_STOCK_SECTORS[a];
+      const isStockB = !!AN_STOCK_SECTORS[b];
+      // For stock ↔ ETF: any match is meaningful (1/1 = 100%)
+      // For ETF ↔ ETF: score out of 5 top holdings
+      const denom  = (isStockA || isStockB) ? 1 : 5;
+      const score  = Math.min(100, Math.round((shared.length / denom) * 100));
 
       hasAnyOverlap = true;
       let level, color, bg;
       if (score >= 60)      { level = '🔴 High';   color = '#c53030'; bg = '#fff5f5'; }
-      else if (score >= 30) { level = '🟡 Medium'; color = '#744210'; bg = '#fffff0'; }
+      else if (score >= 20) { level = '🟡 Medium'; color = '#744210'; bg = '#fffff0'; }
+      else if (score > 0)   { level = '🟡 Low-Med';color = '#744210'; bg = '#fffff0'; }
       else                  { level = '🟢 Low';    color = '#276749'; bg = '#f0fff4'; }
 
-      const sharedStr = shared.length ? shared.slice(0,3).join(', ') + (shared.length > 3 ? ' +' + (shared.length-3) : '') : 'None';
+      const pairLabel = (isStockA ? '🏢 ' : '') + a + ' ↔ ' + (isStockB ? '🏢 ' : '') + b;
+      const sharedStr = shared.length ? shared.join(', ') : 'None';
+      const note = (isStockA && bH.includes(a)) ? ` · You own ${a} directly + via ${b}` :
+                   (isStockB && aH.includes(b)) ? ` · You own ${b} directly + via ${a}` : '';
 
       html += `
         <tr style="background:${bg};">
-          <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${a} ↔ ${b}</td>
-          <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568;">${sharedStr || '—'}</td>
+          <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;font-weight:600;">${pairLabel}</td>
+          <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;color:#4a5568;">${sharedStr}${note ? `<span style="color:#744210;font-style:italic;font-size:11px;"> ${note}</span>` : ''}</td>
           <td style="padding:7px 8px;border-bottom:1px solid #e2e8f0;text-align:center;">
             <div style="background:#e2e8f0;border-radius:4px;height:8px;width:80px;display:inline-block;vertical-align:middle;margin-right:6px;">
               <div style="background:${color};width:${score}%;height:100%;border-radius:4px;"></div>
@@ -560,13 +676,20 @@ function renderAnOverlapMatrix(positions) {
 
   html += `</tbody></table>`;
 
-  // Also show per-ETF known holdings
+  // Holdings reference — ETFs show top-5, stocks show sector
+  const etfTickers   = tickers.filter(t => AN_TOP_HOLDINGS[t]);
+  const stockTickers = tickers.filter(t => AN_STOCK_SECTORS[t]);
   html += `<div style="margin-top:16px;font-size:12px;color:#718096;">
-    <strong style="color:#2d3748;">Top 5 holdings reference:</strong>
+    <strong style="color:#2d3748;">Holdings reference:</strong>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-    ${tickers.filter(t => AN_TOP_HOLDINGS[t]).map(t =>
+    ${etfTickers.map(t =>
       `<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;">
-        <strong>${t}</strong>: ${AN_TOP_HOLDINGS[t].slice(0,5).join(', ')}
+        <strong>${t}</strong> (ETF): ${AN_TOP_HOLDINGS[t].slice(0,5).join(', ')}
+       </div>`
+    ).join('')}
+    ${stockTickers.map(t =>
+      `<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;">
+        🏢 <strong>${t}</strong>: ${AN_STOCK_SECTORS[t]}
        </div>`
     ).join('')}
     </div>
@@ -725,6 +848,12 @@ function _computeSectorTotals(positions, total) {
   const sectorTotals = {};
   for (const pos of positions) {
     const w = pos.value / total;
+    // Individual stocks: assign 100% to their single sector
+    const stockSec = AN_STOCK_SECTORS[pos.symbol];
+    if (stockSec) {
+      sectorTotals[stockSec] = (sectorTotals[stockSec] || 0) + w * 100;
+      continue;
+    }
     const sectors = AN_SECTORS[pos.symbol];
     if (!sectors) continue;
     const sectorSum = Object.values(sectors).reduce((a, b) => a + b, 0);
@@ -764,9 +893,12 @@ function _buildStaticAnalysis(positions, total, portDesc, weightedYield, topSect
   let overlapPairs = 0;
   for (let i = 0; i < positions.length; i++) {
     for (let j = i+1; j < positions.length; j++) {
-      const aH = AN_TOP_HOLDINGS[positions[i].symbol] || [];
-      const bH = AN_TOP_HOLDINGS[positions[j].symbol] || [];
-      if (aH.filter(h => bH.includes(h)).length >= 2) overlapPairs++;
+      const aH = _anGetHoldings(positions[i].symbol);
+      const bH = _anGetHoldings(positions[j].symbol);
+      const isStockA = !!AN_STOCK_SECTORS[positions[i].symbol];
+      const isStockB = !!AN_STOCK_SECTORS[positions[j].symbol];
+      const thresh = (isStockA || isStockB) ? 1 : 2;
+      if (aH.filter(h => bH.includes(h)).length >= thresh) overlapPairs++;
     }
   }
 
@@ -776,7 +908,7 @@ function _buildStaticAnalysis(positions, total, portDesc, weightedYield, topSect
   // Risk flags
   const flags = [];
   if (maxSec >= 50) flags.push(`Heavy ${Object.entries(sectorData).find(([,v])=>v===maxSec)?.[0]} concentration (${maxSec.toFixed(0)}%)`);
-  if (overlapPairs >= 3) flags.push(`${overlapPairs} ETF pairs share top holdings — consider consolidating`);
+  if (overlapPairs >= 3) flags.push(`${overlapPairs} position pairs share top holdings — consider consolidating`);
   if (weightedYield > 0.15) flags.push('Ultra-high yield (>15%) — NAV erosion risk in some positions');
 
   const strengths = [];

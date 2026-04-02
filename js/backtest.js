@@ -95,11 +95,14 @@ const BT_ETF_CONFIG = {
 // For covered-call ETFs: price return = index_return * cap_factor + navDecay_adj
 // Total return for investor = price_return + yield_avg
 function btGetAnnualReturn(ticker, year, reinvest) {
-  const cfg = BT_ETF_CONFIG[ticker] || { index:'SPY', cap:0.65, yield_avg:0.09, navDecay:0 };
+  // Stocks: no covered-call cap, no NAV decay; use raw market return + stock yield (~1.5%)
+  const isStock = typeof AN_STOCK_SECTORS !== 'undefined' && AN_STOCK_SECTORS[ticker];
+  const stockFallback = isStock ? { index:'SPY', cap:1.0, yield_avg:0.015, navDecay:0 } : { index:'SPY', cap:0.65, yield_avg:0.09, navDecay:0 };
+  const cfg = BT_ETF_CONFIG[ticker] || stockFallback;
   const idx  = BT_INDEX_RETURNS[cfg.index] || BT_INDEX_RETURNS.SPY;
   const idxR = idx[year] !== undefined ? idx[year] : _btMeanReturn(cfg.index);
 
-  // Apply cap factor (covered call caps upside, keeps downside)
+  // Apply cap factor (covered call caps upside, keeps downside; stocks have cap=1.0)
   let priceReturn;
   if (idxR >= 0) {
     priceReturn = idxR * cfg.cap;
@@ -185,7 +188,9 @@ function runHistoricalBacktest(holdings, portfolioSize, startYear, endYear, rein
 // Uses distribution statistics from the historical return series
 
 function getReturnStats(ticker) {
-  const cfg = BT_ETF_CONFIG[ticker] || { index:'SPY', cap:0.65, yield_avg:0.09 };
+  const isStock = typeof AN_STOCK_SECTORS !== 'undefined' && AN_STOCK_SECTORS[ticker];
+  const stockFallback = isStock ? { index:'SPY', cap:1.0, yield_avg:0.015, navDecay:0 } : { index:'SPY', cap:0.65, yield_avg:0.09 };
+  const cfg = BT_ETF_CONFIG[ticker] || stockFallback;
   const idx  = BT_INDEX_RETURNS[cfg.index] || BT_INDEX_RETURNS.SPY;
   const idxReturns = Object.values(idx);
 
