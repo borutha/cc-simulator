@@ -358,6 +358,24 @@ const AN_STOCK_SECTORS = {
   TTD:'Technology',  ROKU:'Technology', U:'Technology',
   COIN:'Technology', HOOD:'Technology', SQ:'Technology',
   SHOP:'Technology', MELI:'Technology', SE:'Technology',
+  // Technology — additional
+  GOOG:'Communication', FTNT:'Technology', CRM:'Technology',
+  VEEV:'Technology', DKNG:'ConsumerDisc', MTCH:'ConsumerDisc',
+  // Consumer Discretionary — additional
+  HD:'ConsumerDisc', TGT:'ConsumerDisc', DLTR:'ConsumerDisc',
+  // Consumer Staples — additional
+  COST:'ConsumerStaple', KHC:'ConsumerStaple', MNST:'ConsumerStaple',
+  // Financials — additional
+  IBKR:'Financials',
+  // Healthcare — additional
+  PFE:'Healthcare', EW:'Healthcare',
+  // Industrials — additional
+  UPS:'Industrials', ITW:'Industrials', LHX:'Industrials',
+  MAS:'Industrials', VRSK:'Industrials',
+  // Energy / Utilities — additional
+  CEG:'Utilities', EVRG:'Utilities', PNW:'Utilities', VST:'Utilities',
+  // Materials — additional
+  EMN:'Materials', SCCO:'Materials', GLDM:'Commodities',
   // Fixed income ETFs — Schwab/iShares additional
   SPYM:'Bonds', SHYG:'Bonds', FALN:'Bonds', DTSS:'Bonds',
   SPSB:'Bonds', SPIB:'Bonds', SPLB:'Bonds', SPAB:'Bonds',
