@@ -58,6 +58,65 @@ const AN_SECTORS = {
   AMZY:  { ConsumerDisc:55, Technology:45, Financials:0, Healthcare:0, Industrials:0, Communication:0, ConsumerStaple:0, Energy:0, Materials:0, Utilities:0, RealEstate:0 },
   YMAX:  { Technology:40, Communication:20, ConsumerDisc:15, Financials:10, Healthcare:5, Industrials:5, ConsumerStaple:3, Energy:2, Materials:0, Utilities:0, RealEstate:0 },
   YMAG:  { Technology:50, Communication:25, ConsumerDisc:15, Financials:5, Healthcare:3, Industrials:2, ConsumerStaple:0, Energy:0, Materials:0, Utilities:0, RealEstate:0 },
+  // Schwab broad market
+  SCHA:  { Financials:17, Industrials:16, Healthcare:14, Technology:12, ConsumerDisc:11, Energy:7, Materials:5, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:3 },
+  SCHB:  { Technology:27, Healthcare:13, Financials:13, ConsumerDisc:11, Industrials:10, Communication:9, ConsumerStaple:6, Energy:4, Materials:3, Utilities:2, RealEstate:2 },
+  SCHX:  { Technology:29, Healthcare:13, Financials:13, ConsumerDisc:11, Communication:9, Industrials:8, ConsumerStaple:7, Energy:4, Materials:3, Utilities:2, RealEstate:2 },
+  SCHF:  { Financials:20, Industrials:15, Technology:11, ConsumerDisc:11, Healthcare:11, Materials:7, ConsumerStaple:7, Communication:7, Energy:5, Utilities:4, RealEstate:3 },
+  SCHC:  { Industrials:20, Financials:18, Technology:12, ConsumerDisc:12, Healthcare:10, Materials:8, ConsumerStaple:6, Energy:5, Utilities:5, RealEstate:4, Communication:0 },
+  SCHM:  { Financials:16, Industrials:15, Technology:14, Healthcare:13, ConsumerDisc:12, Energy:7, Materials:6, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:2 },
+  SCHI:  { Bonds:100 },
+  SCHZ:  { Bonds:100 },
+  // Vanguard bond / fixed income
+  VGIT:  { Bonds:100 },
+  VGLT:  { Bonds:100 },
+  VGSH:  { Bonds:100 },
+  BND:   { Bonds:100 },
+  BNDX:  { Bonds:100 },
+  BSV:   { Bonds:100 },
+  BIV:   { Bonds:100 },
+  BLV:   { Bonds:100 },
+  // iShares bond / fixed income
+  TLT:   { Bonds:100 },
+  IEF:   { Bonds:100 },
+  SHY:   { Bonds:100 },
+  TIP:   { Bonds:100 },
+  GOVT:  { Bonds:100 },
+  LQD:   { Bonds:100 },
+  HYG:   { Bonds:100 },
+  MUB:   { Bonds:100 },
+  // Commodities / alternatives
+  SLV:   { Commodities:100 },
+  IAU:   { Commodities:100 },
+  // More Vanguard equity
+  VB:    { Financials:17, Industrials:16, Healthcare:14, Technology:12, ConsumerDisc:11, Energy:7, Materials:5, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:3 },
+  VO:    { Financials:16, Industrials:15, Technology:14, Healthcare:13, ConsumerDisc:12, Energy:7, Materials:6, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:2 },
+  VV:    { Technology:29, Healthcare:13, Financials:13, ConsumerDisc:11, Communication:9, Industrials:8, ConsumerStaple:7, Energy:4, Materials:3, Utilities:2, RealEstate:2 },
+  VUG:   { Technology:48, Communication:14, ConsumerDisc:12, Financials:6, Healthcare:6, Industrials:6, ConsumerStaple:3, Energy:1, Materials:2, Utilities:1, RealEstate:1 },
+  VIG:   { Technology:20, Financials:18, Healthcare:16, Industrials:15, ConsumerStaple:13, ConsumerDisc:8, Energy:4, Materials:3, Utilities:2, Communication:1, RealEstate:0 },
+  VYM:   { Financials:22, Healthcare:14, Industrials:13, ConsumerStaple:12, Energy:11, Technology:9, Utilities:7, ConsumerDisc:5, Materials:4, Communication:3, RealEstate:0 },
+  // iShares equity
+  IWB:   { Technology:29, Healthcare:13, Financials:13, ConsumerDisc:11, Communication:9, Industrials:8, ConsumerStaple:7, Energy:4, Materials:3, Utilities:2, RealEstate:2 },
+  IWF:   { Technology:46, Communication:15, ConsumerDisc:13, Healthcare:7, Financials:6, Industrials:6, ConsumerStaple:3, Energy:1, Materials:2, Utilities:1, RealEstate:0 },
+  IWD:   { Financials:22, Healthcare:18, Industrials:12, ConsumerStaple:11, Energy:10, Technology:9, Utilities:7, Materials:4, ConsumerDisc:4, Communication:3, RealEstate:0 },
+  IJR:   { Financials:17, Industrials:16, Healthcare:14, Technology:12, ConsumerDisc:11, Energy:7, Materials:5, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:3 },
+  IJH:   { Financials:16, Industrials:15, Technology:14, Healthcare:13, ConsumerDisc:12, Energy:7, Materials:6, ConsumerStaple:5, Utilities:5, RealEstate:5, Communication:2 },
+  // SPDR sector ETFs
+  XLK:   { Technology:95, Communication:5 },
+  XLF:   { Financials:100 },
+  XLV:   { Healthcare:100 },
+  XLI:   { Industrials:100 },
+  XLE:   { Energy:100 },
+  XLP:   { ConsumerStaple:100 },
+  XLY:   { ConsumerDisc:100 },
+  XLU:   { Utilities:100 },
+  XLB:   { Materials:100 },
+  XLRE:  { RealEstate:100 },
+  XLC:   { Communication:100 },
+  // Dividend / income
+  DVY:   { Utilities:25, Financials:20, Energy:15, ConsumerStaple:12, RealEstate:10, Healthcare:8, Technology:5, Industrials:3, Materials:2, ConsumerDisc:0, Communication:0 },
+  HDV:   { Energy:22, Healthcare:18, ConsumerStaple:17, Utilities:12, Financials:10, Technology:8, Communication:7, Industrials:4, Materials:2, ConsumerDisc:0, RealEstate:0 },
+  NOBL:  { ConsumerStaple:22, Industrials:20, Financials:14, Materials:12, Healthcare:11, ConsumerDisc:8, Technology:6, Energy:4, Utilities:2, Communication:1, RealEstate:0 },
 };
 
 // Top-5 holdings for overlap analysis
@@ -91,6 +150,30 @@ const AN_TOP_HOLDINGS = {
   CONY:  ['COIN','COIN','COIN','COIN','COIN'],
   YMAX:  ['TSLA','NVDA','AAPL','AMZN','META'],
   YMAG:  ['MSFT','NVDA','AAPL','META','AMZN'],
+  // Schwab equity
+  SCHA:  ['FOUR','CSWI','SPSC','MGEE','IIPR'],
+  SCHB:  ['MSFT','AAPL','NVDA','AMZN','GOOGL'],
+  SCHX:  ['MSFT','AAPL','NVDA','AMZN','GOOGL'],
+  SCHF:  ['NOVO','SAP','TM','NVS','ASML'],
+  SCHC:  ['FOUR','CSWI','SPSC','TKO','MGEE'],
+  SCHM:  ['CSWI','SPSC','MGEE','TKO','FOUR'],
+  // Vanguard equity
+  VB:    ['FOUR','CSWI','SPSC','MGEE','IIPR'],
+  VO:    ['CSWI','SPSC','MGEE','TKO','FOUR'],
+  VV:    ['MSFT','AAPL','NVDA','AMZN','GOOGL'],
+  VUG:   ['MSFT','NVDA','AAPL','AMZN','META'],
+  VIG:   ['MSFT','AAPL','JPM','UNH','AVGO'],
+  VYM:   ['JPM','XOM','JNJ','PG','CVX'],
+  // iShares equity
+  IWB:   ['MSFT','AAPL','NVDA','AMZN','GOOGL'],
+  IWF:   ['MSFT','NVDA','AAPL','AMZN','META'],
+  IWD:   ['BRK.B','JPM','UNH','XOM','JNJ'],
+  IJR:   ['FOUR','CSWI','SPSC','MGEE','IIPR'],
+  IJH:   ['CSWI','SPSC','MGEE','TKO','FOUR'],
+  // Dividend
+  DVY:   ['VZ','MO','XOM','CVX','T'],
+  HDV:   ['XOM','CVX','JNJ','PG','VZ'],
+  NOBL:  ['PG','KO','JNJ','MMM','T'],
 };
 
 // Individual stock sector lookup (single dominant sector per ticker)
