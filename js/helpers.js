@@ -110,13 +110,16 @@ function parseHoldingsXLSX(file) {
         const col = name => headers.findIndex(h => h === name);
 
         const C = {
-          ticker  : col('Security ID'),
-          acctNum : col('Account Number'),
-          acctName: col('Account Nickname/Title'),
-          desc    : col('Description'),
-          qty     : col('Quantity'),
-          price   : col('Price'),
-          value   : col('Market Value'),
+          ticker       : col('Security ID'),
+          acctNum      : col('Account Number'),
+          acctName     : col('Account Nickname/Title'),
+          desc         : col('Description'),
+          qty          : col('Quantity'),
+          price        : col('Price'),
+          value        : col('Market Value'),
+          gainLossDollar: col('Gain/Loss $'),
+          gainLossPct   : col('Gain/Loss %'),
+          activityDate  : col('Activity Date'),
         };
         // Positional fallbacks (col B=index 1 in Schwab layout)
         if (C.ticker   < 0) C.ticker   = 1;
@@ -126,6 +129,9 @@ function parseHoldingsXLSX(file) {
         if (C.qty      < 0) C.qty      = 7;
         if (C.price    < 0) C.price    = 8;
         if (C.value    < 0) C.value    = 13;
+        if (C.gainLossDollar < 0) C.gainLossDollar = 15;
+        if (C.gainLossPct    < 0) C.gainLossPct    = 16;
+        if (C.activityDate   < 0) C.activityDate   = 17;
 
         const rawPositions = [];
         const accountSet   = new Set();
@@ -146,7 +152,19 @@ function parseHoldingsXLSX(file) {
           if (value <= 0 && qty > 0 && price > 0) value = qty * price;
           if (value <= 0) continue;
 
-          rawPositions.push({ acct, acctName, symbol: ticker, desc, qty, value });
+          const gainLossDollar = parseFloat(row[C.gainLossDollar]) || null;
+          const gainLossPct    = parseFloat(row[C.gainLossPct])    || null;
+          // Activity date: may be a JS Date object (from cellDates:true) or string
+          let activityDate = null;
+          const rawDate = row[C.activityDate];
+          if (rawDate instanceof Date) {
+            activityDate = rawDate.toISOString().slice(0, 10);
+          } else if (rawDate && String(rawDate).trim() !== 'N/A') {
+            activityDate = String(rawDate).trim();
+          }
+
+          rawPositions.push({ acct, acctName, symbol: ticker, desc, qty, value,
+                               gainLossDollar, gainLossPct, activityDate });
           if (acct) accountSet.add(acct);
         }
         resolve({ rawPositions, accounts: [...accountSet] });

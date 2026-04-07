@@ -573,9 +573,22 @@ function _anMergePositions(rawPositions, filter) {
   rawPositions
     .filter(p => filter === 'ALL' || p.acct === filter)
     .forEach(p => {
-      if (!map[p.symbol]) map[p.symbol] = { symbol: p.symbol, desc: p.desc, value: 0, qty: 0, isManual: false };
-      map[p.symbol].value += p.value;
-      map[p.symbol].qty   += p.qty;
+      if (!map[p.symbol]) {
+        map[p.symbol] = {
+          symbol: p.symbol, desc: p.desc, value: 0, qty: 0, isManual: false,
+          gainLossDollar: null, gainLossPct: null, activityDate: null,
+          totalGainLossDollar: null, totalGainLossPct: null,
+        };
+      }
+      const m = map[p.symbol];
+      m.value += p.value;
+      m.qty   += (p.qty || 0);
+      // Aggregate Gain/Loss dollar (sum across lots/accounts)
+      if (p.gainLossDollar != null)      m.gainLossDollar      = (m.gainLossDollar || 0) + p.gainLossDollar;
+      if (p.gainLossPct    != null)      m.gainLossPct         = p.gainLossPct;   // last seen (per-lot avg)
+      if (p.activityDate   != null)      m.activityDate        = p.activityDate;  // first buy date (earliest)
+      if (p.totalGainLossDollar != null) m.totalGainLossDollar = (m.totalGainLossDollar || 0) + p.totalGainLossDollar;
+      if (p.totalGainLossPct    != null) m.totalGainLossPct    = p.totalGainLossPct;
     });
   return Object.values(map).sort((a, b) => b.value - a.value);
 }
@@ -717,12 +730,17 @@ function anRestoreSession(event) {
       const data = JSON.parse(e.target.result);
       if (!data.positions || !Array.isArray(data.positions)) throw new Error('Invalid session file.');
       anPositions = data.positions.map(p => ({
-        symbol:   (p.symbol || '').toUpperCase().trim(),
-        desc:     p.desc || p.symbol,
-        value:    parseFloat(p.value) || 0,
-        acct:     p.acct || '',
-        isManual: !!p.isManual,
-        pct:      0
+        symbol:              (p.symbol || '').toUpperCase().trim(),
+        desc:                p.desc || p.symbol,
+        value:               parseFloat(p.value) || 0,
+        acct:                p.acct || '',
+        isManual:            !!p.isManual,
+        gainLossDollar:      p.gainLossDollar      ?? null,
+        gainLossPct:         p.gainLossPct         ?? null,
+        activityDate:        p.activityDate        ?? null,
+        totalGainLossDollar: p.totalGainLossDollar ?? null,
+        totalGainLossPct:    p.totalGainLossPct    ?? null,
+        pct:                 0
       }));
       _recalcAnPct();
       // Show the content panel and set mode
@@ -836,6 +854,9 @@ function renderAnalyzerTable() {
           <th>Description</th>
           <th style="text-align:right;">Value ($)</th>
           <th style="text-align:right;">Weight (%)</th>
+          <th style="text-align:right;">Gain/Loss $</th>
+          <th style="text-align:right;">Gain/Loss %</th>
+          <th style="text-align:center;">Purchased</th>
           <th style="text-align:center;">Primary Sector</th>
           <th style="text-align:center;">Overlap Risk</th>
           <th></th>
@@ -861,6 +882,19 @@ function renderAnalyzerTable() {
          </td>`
       : `<td style="text-align:right;">${anFmt$(pos.value)}</td>`;
 
+    // Gain/Loss — prefer XLSX gainLossDollar, fall back to CSV totalGainLossDollar
+    const glDollar = pos.gainLossDollar ?? pos.totalGainLossDollar ?? null;
+    const glPct    = pos.gainLossPct    ?? pos.totalGainLossPct    ?? null;
+    const glColor  = glDollar === null ? '#718096' : glDollar >= 0 ? '#276749' : '#c53030';
+    const glDollarStr = glDollar === null ? '—'
+      : (glDollar >= 0 ? '+' : '') + anFmt$(glDollar);
+    const glPctStr = glPct === null ? '—'
+      : (glPct >= 0 ? '+' : '') + (glPct * (Math.abs(glPct) <= 1 ? 100 : 1)).toFixed(2) + '%';
+
+    const dateStr = pos.activityDate
+      ? pos.activityDate.slice(0, 10)
+      : '—';
+
     html += `
       <tr>
         <td style="text-align:center;">
@@ -870,6 +904,9 @@ function renderAnalyzerTable() {
         <td style="font-size:12px;color:#4a5568;">${pos.desc || pos.symbol}</td>
         ${valueCell}
         <td style="text-align:right;">${pos.pct ? pos.pct.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right;font-weight:600;color:${glColor};">${glDollarStr}</td>
+        <td style="text-align:right;font-weight:600;color:${glColor};">${glPctStr}</td>
+        <td style="text-align:center;font-size:11px;color:#718096;">${dateStr}</td>
         <td style="text-align:center;">
           <span style="background:${sectorColor}22;color:${sectorColor};border:1px solid ${sectorColor}44;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;">${sectorName}</span>
         </td>
@@ -880,7 +917,7 @@ function renderAnalyzerTable() {
   }
 
   if (visiblePositions.length === 0) {
-    html += `<tr><td colspan="8" style="padding:20px;text-align:center;color:#718096;">No positions match the current filters.</td></tr>`;
+    html += `<tr><td colspan="11" style="padding:20px;text-align:center;color:#718096;">No positions match the current filters.</td></tr>`;
   }
 
   html += `</tbody></table></div>`;

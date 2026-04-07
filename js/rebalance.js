@@ -33,6 +33,16 @@ function parseRebDollar(s) {
   return neg ? -n : n;
 }
 
+function parseRebPct(s) {
+  if (!s) return null;
+  s = String(s).trim().replace(/^"|"$/g, '').trim();
+  const neg = s.startsWith('(') && s.endsWith(')');
+  s = s.replace(/[%,()\s]/g, '');
+  const n = parseFloat(s);
+  if (isNaN(n)) return null;
+  return neg ? -n : n;
+}
+
 function parseRebCSV(text) {
   const lines = text.split(/\r?\n/);
   const rows  = [];
@@ -62,6 +72,12 @@ function parseRebCSV(text) {
   const accounts     = new Set();
   const rawPositions = [];
 
+  // Map header columns by name for Fidelity CSV
+  const hdr = rows[headerIdx].map(c => (c||'').trim().toLowerCase());
+  const fCol = name => hdr.findIndex(h => h.includes(name));
+  const iTotal$   = fCol('total gain/loss dollar');
+  const iTotalPct = fCol('total gain/loss percent');
+
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const r      = rows[i];
     if (r.length < 7) continue;
@@ -75,8 +91,12 @@ function parseRebCSV(text) {
     if (!symbol || r[1].includes('*')) continue; // skip cash/MM
     if (value <= 0) continue;
 
+    // Total Gain/Loss from Fidelity — strip $, commas, parens
+    const totalGainLossDollar = iTotal$   >= 0 ? parseRebDollar(r[iTotal$])   : null;
+    const totalGainLossPct    = iTotalPct >= 0 ? parseRebPct(r[iTotalPct])    : null;
+
     accounts.add(acct);
-    rawPositions.push({ acct, symbol, desc, qty, value });
+    rawPositions.push({ acct, symbol, desc, qty, value, totalGainLossDollar, totalGainLossPct });
   }
 
   return { rawPositions, accounts: [...accounts] };
