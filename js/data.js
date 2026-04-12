@@ -1,13 +1,12 @@
 // CONFIG
-// Set CLOUD_SERVER_URL to your Railway URL to use live data from any device.
-// Example: 'https://cc-simulator-production.up.railway.app'
-// Leave as '' to auto-detect (localhost when running locally).
+// Hosted on GitHub Pages — no backend server.
+// The app uses built-in ETF data (updated periodically).
+// Sector lookups for unknown tickers are fetched live from Yahoo Finance
+// directly in the browser (Portfolio Analyzer tab).
 // ============================================================
-const CLOUD_SERVER_URL = 'https://web-production-05ef69.up.railway.app';
+const CLOUD_SERVER_URL = '';   // no backend
 
-const API = CLOUD_SERVER_URL
-  ? CLOUD_SERVER_URL.replace(/\/$/, '')
-  : 'http://127.0.0.1:7432';
+const API = 'http://127.0.0.1:7432'; // only used if running locally
 let serverOnline = false;
 
 // ============================================================
@@ -162,6 +161,16 @@ let _scenarioOverrides = { bear: { price: null, div: null }, base: { price: null
 // SERVER HEALTH
 // ============================================================
 async function checkServer() {
+  // No backend configured — running as a static GitHub Pages app.
+  // Hide the server badge entirely; the static YAHOO FINANCE badge stays visible.
+  if (!CLOUD_SERVER_URL) {
+    serverOnline = false;
+    const badge = document.getElementById('serverBadge');
+    if (badge) badge.style.display = 'none';
+    const notice = document.getElementById('serverNotice');
+    if (notice) notice.style.display = 'none';
+    return false;
+  }
   try {
     const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(1500) });
     if (r.ok) {
