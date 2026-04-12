@@ -332,45 +332,75 @@ const QUICK_SUGGESTIONS = [
 
 document.getElementById('etfSearch').addEventListener('input', function() {
   clearTimeout(searchDebounceTimer);
-  const q = this.value.trim();
+  const q = this.value.trim().toUpperCase();
   const dd = document.getElementById('searchDropdown');
-  const spinner = document.getElementById('searchSpinner');
 
   if (!q) { dd.style.display='none'; return; }
 
-  // Immediate local match — use live data from ETF_DATA if already fetched
+  // Filter suggestions list for partial matches
   const localMatches = QUICK_SUGGESTIONS.filter(s =>
-    s.ticker.toLowerCase().includes(q.toLowerCase()) ||
+    s.ticker.toUpperCase().includes(q) ||
     s.name.toLowerCase().includes(q.toLowerCase())
-  ).slice(0, 8);
+  ).slice(0, 7);
 
-  if (localMatches.length > 0) {
-    renderDropdown(localMatches.map(s => ({
-      ticker: s.ticker,
-      name:   ETF_DATA[s.ticker]?.name || s.name,
-      source: ETF_SOURCE[s.ticker] || 'cache',
-      yield_annual: ETF_DATA[s.ticker]?.yield_annual
-    })));
-  }
+  // Check if the query looks like an exact ticker (1-5 uppercase letters/dots)
+  const looksLikeTicker = /^[A-Z0-9.\-]{1,6}$/.test(q);
+  // Is it already in the suggestions list exactly?
+  const exactInList = QUICK_SUGGESTIONS.some(s => s.ticker.toUpperCase() === q);
 
-  // Kick off a live fetch for any matched ticker not yet fetched
-  // Store in _liveFetchCache to prevent duplicate fetches
+  // Show local matches immediately
+  const buildItems = () => localMatches.map(s => ({
+    ticker: s.ticker,
+    name:   ETF_DATA[s.ticker]?.name || s.name,
+    source: ETF_SOURCE[s.ticker] || 'cache',
+    yield_annual: ETF_DATA[s.ticker]?.yield_annual
+  }));
+
+  if (localMatches.length > 0) renderDropdown(buildItems());
+
+  // Kick off live fetch for any matched local ticker not yet fetched
   localMatches.forEach(s => {
     if (ETF_SOURCE[s.ticker] !== 'live' && !_liveFetchCache[s.ticker]) {
       _liveFetchCache[s.ticker] = fetchLive(s.ticker).then(result => {
-        // Refresh dropdown if still showing same query
-        if (document.getElementById('etfSearch').value.trim() === q) {
-          renderDropdown(localMatches.map(s => ({
-            ticker: s.ticker,
-            name:   ETF_DATA[s.ticker]?.name || s.name,
-            source: ETF_SOURCE[s.ticker] || 'cache',
-            yield_annual: ETF_DATA[s.ticker]?.yield_annual
-          })));
-        }
+        if (document.getElementById('etfSearch').value.trim().toUpperCase() === q)
+          renderDropdown(buildItems());
         return result;
       });
     }
   });
+
+  // If query looks like a ticker not in the suggestions list, do a live lookup
+  if (looksLikeTicker && !exactInList) {
+    // Show "searching..." placeholder if no local matches either
+    if (localMatches.length === 0) {
+      dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">🔍 Looking up <strong>${q}</strong> on Yahoo Finance…</div>`;
+      dd.style.display = 'block';
+    }
+
+    // Debounce the live lookup by 600ms so we don't fire on every keystroke
+    searchDebounceTimer = setTimeout(() => {
+      if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
+      if (!_liveFetchCache[q]) {
+        _liveFetchCache[q] = fetchLive(q);
+      }
+      _liveFetchCache[q].then(result => {
+        if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
+        if (result) {
+          // Found it — show as top result, then local partial matches below
+          const liveItem = {
+            ticker: q,
+            name:   ETF_DATA[q]?.name || q,
+            source: 'live',
+            yield_annual: ETF_DATA[q]?.yield_annual
+          };
+          renderDropdown([liveItem, ...buildItems().filter(i => i.ticker !== q)].slice(0, 8));
+        } else if (localMatches.length === 0) {
+          dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">No results for "<strong>${q}</strong>". Check the ticker symbol.</div>`;
+          dd.style.display = 'block';
+        }
+      });
+    }, 600);
+  }
 });
 
 function renderDropdown(items) {
