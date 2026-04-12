@@ -192,28 +192,94 @@ async function checkServer() {
 }
 
 // ============================================================
-// LIVE DATA FETCH
+// LIVE DATA FETCH — direct Yahoo Finance via allorigins CORS proxy
 // ============================================================
+
+// Parse a Yahoo Finance quoteSummary response into our ETF_DATA shape
+function _parseYahooData(ticker, d) {
+  const result = d?.quoteSummary?.result?.[0];
+  if (!result) return null;
+
+  const price  = result.price || {};
+  const sumDetail = result.summaryDetail || {};
+  const calEvents = result.calendarEvents || {};
+  const keyStats  = result.defaultKeyStatistics || {};
+
+  const currentPrice = price.regularMarketPrice?.raw ?? 0;
+  if (!currentPrice) return null;
+
+  // Dividend yield and trailing 12-month dividends
+  const yieldAnnual = sumDetail.dividendYield?.raw ?? (sumDetail.trailingAnnualDividendYield?.raw ?? 0);
+  const divRate     = sumDetail.dividendRate?.raw  ?? (sumDetail.trailingAnnualDividendRate?.raw ?? 0);
+
+  // NAV (for ETFs); fall back to price
+  const nav = keyStats.fundInceptionDate ? currentPrice : (price.regularMarketPrice?.raw ?? currentPrice);
+
+  // Assemble into the shape the simulator expects
+  const out = {
+    name:          price.longName || price.shortName || ticker,
+    price:         currentPrice,
+    nav:           nav,
+    yield_annual:  yieldAnnual,
+    total_div_1y:  divRate,
+    divFreq:       ETF_DATA[ticker]?.divFreq ?? 'monthly',   // keep cached freq if available
+    recent_divs:   ETF_DATA[ticker]?.recent_divs ?? [],
+    one_y_start:   (price.fiftyTwoWeekLow?.raw  ?? currentPrice),
+    six_m_start:   ETF_DATA[ticker]?.six_m_start   ?? currentPrice,
+    three_m_start: ETF_DATA[ticker]?.three_m_start ?? currentPrice,
+    ytd_start:     ETF_DATA[ticker]?.ytd_start     ?? currentPrice,
+    category:      ETF_DATA[ticker]?.category      ?? '',
+    _liveAt:       Date.now(),
+  };
+  return out;
+}
+
 async function fetchLive(ticker) {
   ticker = ticker.toUpperCase();
   try {
-    const r = await fetch(`${API}/etf?ticker=${ticker}`, { signal: AbortSignal.timeout(8000) });
-    const d = await r.json();
-    if (d.error) return null;
-    ETF_DATA[ticker] = d;
+    const modules = 'price,summaryDetail,defaultKeyStatistics,calendarEvents';
+    const yahooUrl = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+
+    const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return null;
+    const outer = await r.json();
+    const d = JSON.parse(outer.contents || '{}');
+    const parsed = _parseYahooData(ticker, d);
+    if (!parsed) return null;
+
+    ETF_DATA[ticker]   = { ...ETF_DATA[ticker], ...parsed }; // merge, keeping cached divs/freq
     ETF_SOURCE[ticker] = 'live';
-    return d;
+    return ETF_DATA[ticker];
   } catch { return null; }
 }
 
+// Session-level fetch lock so we only hit Yahoo once per ticker per page load
+const _liveFetchCache = {};
+
 async function ensureData(ticker) {
   ticker = ticker.toUpperCase();
-  if (ETF_SOURCE[ticker] === 'live') return ETF_DATA[ticker]; // already fresh live data
-  if (serverOnline) {
-    const live = await fetchLive(ticker);
-    if (live) return live; // got fresh data, ETF_SOURCE set to 'live' inside fetchLive
+  if (ETF_SOURCE[ticker] === 'live') return ETF_DATA[ticker]; // already fresh
+
+  // Try live fetch (once per session per ticker)
+  if (!_liveFetchCache[ticker]) {
+    _liveFetchCache[ticker] = fetchLive(ticker).then(live => {
+      if (live) {
+        // Update badge to show we have live data
+        const badge = document.getElementById('serverBadge');
+        if (badge) {
+          badge.className = 'badge badge-live';
+          badge.innerHTML = '<div class="live-dot"></div>YAHOO LIVE';
+          badge.style.display = 'flex';
+        }
+      }
+      return live;
+    });
   }
-  // Fall back to cache — but only if it's a real entry (has a price), not just a stub
+  const live = await _liveFetchCache[ticker];
+  if (live) return live;
+
+  // Fall back to built-in cache
   const cached = ETF_DATA[ticker];
   if (cached && cached.price > 0) { ETF_SOURCE[ticker] = 'cache'; return cached; }
   return null;
