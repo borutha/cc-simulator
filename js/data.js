@@ -193,69 +193,80 @@ async function checkServer() {
 
 // ============================================================
 // LIVE DATA FETCH — Yahoo Finance v8/chart via allorigins CORS proxy
-// Uses the chart endpoint (v11 quoteSummary is no longer publicly available)
+// Two-step fetch: 1d for price (fast, always works) + 1y for dividends (best-effort)
 // ============================================================
 
-// Parse a Yahoo Finance v8/chart response into our ETF_DATA shape
-function _parseYahooChartData(ticker, d) {
-  const result = d?.chart?.result?.[0];
-  if (!result) return null;
+function _yahooProxyUrl(ticker, range, events) {
+  let url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1mo&range=${range}`;
+  if (events) url += `&events=${events}`;
+  return `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+}
 
-  const meta = result.meta || {};
-  const currentPrice = meta.regularMarketPrice ?? 0;
-  if (!currentPrice) return null;
+async function _yahooFetch(ticker, range, events, timeoutMs) {
+  try {
+    const r = await fetch(_yahooProxyUrl(ticker, range, events), { signal: AbortSignal.timeout(timeoutMs) });
+    if (!r.ok) return null;
+    const outer = await r.json();
+    if (!outer?.contents) return null;
+    return JSON.parse(outer.contents);
+  } catch { return null; }
+}
 
-  // Compute trailing 12-month dividend total from events
-  const divEvents = result.events?.dividends ? Object.values(result.events.dividends) : [];
+function _extractDivs(result, ticker) {
+  const divEvents = result?.events?.dividends ? Object.values(result.events.dividends) : [];
   const total_div_1y = divEvents.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const yieldAnnual  = total_div_1y > 0 && currentPrice > 0 ? total_div_1y / currentPrice : (ETF_DATA[ticker]?.yield_annual ?? 0);
-
-  // Build recent_divs array [[dateStr, amount], ...] sorted newest-first
   const recent_divs = divEvents
-    .sort((a, b) => b.date - a.date)
-    .slice(0, 12)
-    .map(e => {
-      const dt = new Date(e.date * 1000);
-      const ds = dt.toISOString().slice(0, 10);
-      return [ds, e.amount];
-    })
-    .reverse(); // simulator expects oldest-first
-
-  const out = {
-    name:          meta.longName || meta.shortName || ticker,
-    price:         currentPrice,
-    nav:           currentPrice,                              // chart API has no separate NAV
-    yield_annual:  yieldAnnual,
-    total_div_1y:  total_div_1y || (ETF_DATA[ticker]?.total_div_1y ?? 0),
-    divFreq:       ETF_DATA[ticker]?.divFreq ?? 'monthly',   // keep cached freq
-    recent_divs:   recent_divs.length > 0 ? recent_divs : (ETF_DATA[ticker]?.recent_divs ?? []),
-    one_y_start:   ETF_DATA[ticker]?.one_y_start   ?? currentPrice,
-    six_m_start:   ETF_DATA[ticker]?.six_m_start   ?? currentPrice,
-    three_m_start: ETF_DATA[ticker]?.three_m_start ?? currentPrice,
-    ytd_start:     ETF_DATA[ticker]?.ytd_start     ?? currentPrice,
-    category:      ETF_DATA[ticker]?.category      ?? '',
-    _liveAt:       Date.now(),
-  };
-  return out;
+    .sort((a, b) => a.date - b.date)
+    .slice(-12)
+    .map(e => [new Date(e.date * 1000).toISOString().slice(0, 10), e.amount]);
+  return { total_div_1y, recent_divs };
 }
 
 async function fetchLive(ticker) {
   ticker = ticker.toUpperCase();
   try {
-    // v8 chart endpoint — works through allorigins proxy, includes price + dividend events
-    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1mo&range=1y&events=dividends`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+    // Step 1: fast 1d fetch — always succeeds, gives us price + name
+    const d1 = await _yahooFetch(ticker, '1d', null, 8000);
+    const result1 = d1?.chart?.result?.[0];
+    if (!result1) return null;
 
-    const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) });
-    if (!r.ok) return null;
-    const outer = await r.json();
-    if (!outer?.contents) return null;
-    const d = JSON.parse(outer.contents);
-    const parsed = _parseYahooChartData(ticker, d);
-    if (!parsed) return null;
+    const meta = result1.meta || {};
+    const currentPrice = meta.regularMarketPrice ?? 0;
+    if (!currentPrice) return null;
 
-    ETF_DATA[ticker]   = { ...ETF_DATA[ticker], ...parsed }; // merge, keeping cached fields
+    // Build base object from price data
+    const base = {
+      name:          meta.longName || meta.shortName || ticker,
+      price:         currentPrice,
+      nav:           currentPrice,
+      yield_annual:  ETF_DATA[ticker]?.yield_annual ?? 0,
+      total_div_1y:  ETF_DATA[ticker]?.total_div_1y ?? 0,
+      divFreq:       ETF_DATA[ticker]?.divFreq ?? 'monthly',
+      recent_divs:   ETF_DATA[ticker]?.recent_divs ?? [],
+      one_y_start:   ETF_DATA[ticker]?.one_y_start   ?? currentPrice,
+      six_m_start:   ETF_DATA[ticker]?.six_m_start   ?? currentPrice,
+      three_m_start: ETF_DATA[ticker]?.three_m_start ?? currentPrice,
+      ytd_start:     ETF_DATA[ticker]?.ytd_start     ?? currentPrice,
+      category:      ETF_DATA[ticker]?.category      ?? '',
+      _liveAt:       Date.now(),
+    };
+
+    // Publish price immediately so search dropdown shows LIVE straight away
+    ETF_DATA[ticker]   = { ...ETF_DATA[ticker], ...base };
     ETF_SOURCE[ticker] = 'live';
+
+    // Step 2: background 1y+dividends fetch — best-effort, updates yield if it succeeds
+    _yahooFetch(ticker, '1y', 'dividends', 15000).then(d2 => {
+      const result2 = d2?.chart?.result?.[0];
+      if (!result2) return;
+      const { total_div_1y, recent_divs } = _extractDivs(result2, ticker);
+      if (total_div_1y > 0) {
+        ETF_DATA[ticker].total_div_1y = total_div_1y;
+        ETF_DATA[ticker].yield_annual = total_div_1y / currentPrice;
+        if (recent_divs.length > 0) ETF_DATA[ticker].recent_divs = recent_divs;
+      }
+    });
+
     return ETF_DATA[ticker];
   } catch { return null; }
 }
