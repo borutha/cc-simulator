@@ -332,47 +332,39 @@ document.getElementById('etfSearch').addEventListener('input', function() {
 
   if (!q) { dd.style.display='none'; return; }
 
-  // Immediate local match
+  // Immediate local match — use live data from ETF_DATA if already fetched
   const localMatches = QUICK_SUGGESTIONS.filter(s =>
     s.ticker.toLowerCase().includes(q.toLowerCase()) ||
     s.name.toLowerCase().includes(q.toLowerCase())
-  ).slice(0,8);
+  ).slice(0, 8);
 
   if (localMatches.length > 0) {
     renderDropdown(localMatches.map(s => ({
       ticker: s.ticker,
-      name: s.name,
-      source: 'cache',
+      name:   ETF_DATA[s.ticker]?.name || s.name,
+      source: ETF_SOURCE[s.ticker] || 'cache',
       yield_annual: ETF_DATA[s.ticker]?.yield_annual
     })));
   }
 
-  // If server online, also query live (debounced)
-  if (serverOnline && q.length >= 2) {
-    searchDebounceTimer = setTimeout(async () => {
-      spinner.style.display = 'inline';
-      try {
-        const r = await fetch(`${API}/search?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(5000) });
-        const results = await r.json();
-        spinner.style.display = 'none';
-        if (results.length > 0) {
-          // Merge: live results first (deduplicated), then local
-          const liveSet = new Set(results.map(r => r.ticker));
-          const merged = [
-            ...results.map(r => ({ ticker: r.ticker, name: r.name, source: 'live', yield_annual: ETF_DATA[r.ticker]?.yield_annual })),
-            ...localMatches.filter(s => !liveSet.has(s.ticker)).map(s => ({ ticker: s.ticker, name: s.name, source: 'cache', yield_annual: ETF_DATA[s.ticker]?.yield_annual }))
-          ].slice(0, 10);
-          // Pre-seed ETF_DATA with name for any live result not already known,
-          // and kick off background full-data fetch so addETF won't fail
-          results.forEach(r => {
-            if (!ETF_DATA[r.ticker]) ETF_DATA[r.ticker] = { name: r.name, price: 0, yield_annual: 0 };
-            if (ETF_SOURCE[r.ticker] !== 'live') fetchLive(r.ticker); // background prefetch
-          });
-          renderDropdown(merged);
+  // Kick off a live fetch for any matched ticker not yet fetched
+  // Store in _liveFetchCache to prevent duplicate fetches
+  localMatches.forEach(s => {
+    if (ETF_SOURCE[s.ticker] !== 'live' && !_liveFetchCache[s.ticker]) {
+      _liveFetchCache[s.ticker] = fetchLive(s.ticker).then(result => {
+        // Refresh dropdown if still showing same query
+        if (document.getElementById('etfSearch').value.trim() === q) {
+          renderDropdown(localMatches.map(s => ({
+            ticker: s.ticker,
+            name:   ETF_DATA[s.ticker]?.name || s.name,
+            source: ETF_SOURCE[s.ticker] || 'cache',
+            yield_annual: ETF_DATA[s.ticker]?.yield_annual
+          })));
         }
-      } catch { spinner.style.display = 'none'; }
-    }, 400);
-  }
+        return result;
+      });
+    }
+  });
 });
 
 function renderDropdown(items) {
