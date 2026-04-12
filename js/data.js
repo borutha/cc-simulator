@@ -398,6 +398,25 @@ document.addEventListener('click', e => {
 });
 
 // ============================================================
+// PROACTIVE PREFETCH — load live data for top ETFs on page load
+// so the search dropdown shows LIVE prices immediately
+// ============================================================
+const _PREFETCH_TICKERS = [
+  'JEPI','JEPQ','GPIX','GPIQ','SPYI','QQQI','TSPY','QYLD','XYLD','RYLD',
+  'DIVO','IWMI','DJIA','KLIP','GLDW','SPY','QQQ','VOO','VTI','AGG'
+];
+// Stagger fetches to avoid hitting the proxy rate limit (200ms apart)
+document.addEventListener('DOMContentLoaded', () => {
+  _PREFETCH_TICKERS.forEach((ticker, i) => {
+    setTimeout(() => {
+      if (!_liveFetchCache[ticker] && ETF_SOURCE[ticker] !== 'live') {
+        _liveFetchCache[ticker] = fetchLive(ticker);
+      }
+    }, i * 200);
+  });
+});
+
+// ============================================================
 // HOLDINGS
 // ============================================================
 async function addETF(ticker) {
