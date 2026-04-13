@@ -271,30 +271,37 @@ async function fetchLive(ticker) {
   } catch { return null; }
 }
 
-// Session-level fetch lock so we only hit Yahoo once per ticker per page load
+// Dedup cache: only stores successful fetches so failures can be retried
 const _liveFetchCache = {};
+
+function _fetchLiveCached(ticker) {
+  // If already live, return immediately
+  if (ETF_SOURCE[ticker] === 'live') return Promise.resolve(ETF_DATA[ticker]);
+  // If a fetch is already in-flight or succeeded, reuse it
+  if (_liveFetchCache[ticker]) return _liveFetchCache[ticker];
+  // Start a new fetch; clear cache entry on failure so it can be retried
+  const p = fetchLive(ticker).then(result => {
+    if (!result) delete _liveFetchCache[ticker]; // failed — allow retry
+    return result;
+  });
+  _liveFetchCache[ticker] = p;
+  return p;
+}
 
 async function ensureData(ticker) {
   ticker = ticker.toUpperCase();
   if (ETF_SOURCE[ticker] === 'live') return ETF_DATA[ticker]; // already fresh
 
-  // Try live fetch (once per session per ticker)
-  if (!_liveFetchCache[ticker]) {
-    _liveFetchCache[ticker] = fetchLive(ticker).then(live => {
-      if (live) {
-        // Update badge to show we have live data
-        const badge = document.getElementById('serverBadge');
-        if (badge) {
-          badge.className = 'badge badge-live';
-          badge.innerHTML = '<div class="live-dot"></div>YAHOO LIVE';
-          badge.style.display = 'flex';
-        }
-      }
-      return live;
-    });
+  const live = await _fetchLiveCached(ticker);
+  if (live) {
+    const badge = document.getElementById('serverBadge');
+    if (badge) {
+      badge.className = 'badge badge-live';
+      badge.innerHTML = '<div class="live-dot"></div>YAHOO LIVE';
+      badge.style.display = 'flex';
+    }
+    return live;
   }
-  const live = await _liveFetchCache[ticker];
-  if (live) return live;
 
   // Fall back to built-in cache
   const cached = ETF_DATA[ticker];
@@ -371,11 +378,10 @@ document.getElementById('etfSearch').addEventListener('input', function() {
 
   // Kick off live fetch for any matched local ticker not yet fetched
   localMatches.forEach(s => {
-    if (ETF_SOURCE[s.ticker] !== 'live' && !_liveFetchCache[s.ticker]) {
-      _liveFetchCache[s.ticker] = fetchLive(s.ticker).then(result => {
+    if (ETF_SOURCE[s.ticker] !== 'live') {
+      _fetchLiveCached(s.ticker).then(result => {
         if (document.getElementById('etfSearch').value.trim().toUpperCase() === q)
           renderDropdown(buildItems());
-        return result;
       });
     }
   });
@@ -391,10 +397,7 @@ document.getElementById('etfSearch').addEventListener('input', function() {
     // Debounce the live lookup by 600ms so we don't fire on every keystroke
     searchDebounceTimer = setTimeout(() => {
       if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
-      if (!_liveFetchCache[q]) {
-        _liveFetchCache[q] = fetchLive(q);
-      }
-      _liveFetchCache[q].then(result => {
+      _fetchLiveCached(q).then(result => {
         if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
         if (result) {
           // Found it — show as top result, then local partial matches below
@@ -445,23 +448,7 @@ document.addEventListener('click', e => {
 });
 
 // ============================================================
-// PROACTIVE PREFETCH — load live data for top ETFs on page load
-// so the search dropdown shows LIVE prices immediately
-// ============================================================
-const _PREFETCH_TICKERS = [
-  'JEPI','JEPQ','GPIX','GPIQ','SPYI','QQQI','TSPY','QYLD','XYLD','RYLD',
-  'DIVO','IWMI','DJIA','KLIP','GLDW','SPY','QQQ','VOO','VTI','AGG'
-];
-// Stagger fetches to avoid hitting the proxy rate limit (200ms apart)
-document.addEventListener('DOMContentLoaded', () => {
-  _PREFETCH_TICKERS.forEach((ticker, i) => {
-    setTimeout(() => {
-      if (!_liveFetchCache[ticker] && ETF_SOURCE[ticker] !== 'live') {
-        _liveFetchCache[ticker] = fetchLive(ticker);
-      }
-    }, i * 200);
-  });
-});
+// No proactive prefetch — fetch on demand only to avoid rate limiting allorigins
 
 // ============================================================
 // HOLDINGS
