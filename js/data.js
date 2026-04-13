@@ -222,6 +222,14 @@ function _extractDivs(result, ticker) {
   return { total_div_1y, recent_divs };
 }
 
+// Extract the first closing price from a chart result (oldest data point)
+function _firstClose(result) {
+  const closes = result?.indicators?.quote?.[0]?.close;
+  if (!closes) return null;
+  const first = closes.find(v => v != null);
+  return first ?? null;
+}
+
 async function fetchLive(ticker) {
   ticker = ticker.toUpperCase();
   try {
@@ -234,7 +242,7 @@ async function fetchLive(ticker) {
     const currentPrice = meta.regularMarketPrice ?? 0;
     if (!currentPrice) return null;
 
-    // Build base object from price data
+    // Build base object — keep cached historical starts as fallback for now
     const base = {
       name:          meta.longName || meta.shortName || ticker,
       price:         currentPrice,
@@ -255,15 +263,48 @@ async function fetchLive(ticker) {
     ETF_DATA[ticker]   = { ...ETF_DATA[ticker], ...base };
     ETF_SOURCE[ticker] = 'live';
 
-    // Step 2: background 1y+dividends fetch — best-effort, updates yield if it succeeds
+    // Step 2: background historical fetch — gets accurate YTD/6M/1Y/3M start prices + dividends
+    // Use 1y range with dividends — gives all period starts and full dividend history in one call
     _yahooFetch(ticker, '1y', 'dividends', 15000).then(d2 => {
       const result2 = d2?.chart?.result?.[0];
       if (!result2) return;
+
+      // Extract dividends
       const { total_div_1y, recent_divs } = _extractDivs(result2, ticker);
       if (total_div_1y > 0) {
         ETF_DATA[ticker].total_div_1y = total_div_1y;
         ETF_DATA[ticker].yield_annual = total_div_1y / currentPrice;
         if (recent_divs.length > 0) ETF_DATA[ticker].recent_divs = recent_divs;
+      }
+
+      // Extract historical start prices from the time series
+      const timestamps = result2.timestamp || [];
+      const closes = result2.indicators?.quote?.[0]?.close || [];
+      if (timestamps.length > 0 && closes.length > 0) {
+        const now = Date.now() / 1000;
+        const jan1 = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
+        const ago6m = now - 182 * 86400;
+        const ago3m = now - 91 * 86400;
+        const ago1y = now - 365 * 86400;
+
+        // For each period, find the closest closing price just before that date
+        const priceAt = (cutoff) => {
+          let best = null;
+          for (let i = 0; i < timestamps.length; i++) {
+            if (timestamps[i] <= cutoff && closes[i] != null) best = closes[i];
+          }
+          return best;
+        };
+
+        const ytd   = priceAt(jan1)  || priceAt(jan1  + 10 * 86400);
+        const p6m   = priceAt(ago6m) || priceAt(ago6m + 10 * 86400);
+        const p3m   = priceAt(ago3m) || priceAt(ago3m + 10 * 86400);
+        const p1y   = priceAt(ago1y) || priceAt(ago1y + 10 * 86400);
+
+        if (ytd)  ETF_DATA[ticker].ytd_start     = ytd;
+        if (p6m)  ETF_DATA[ticker].six_m_start   = p6m;
+        if (p3m)  ETF_DATA[ticker].three_m_start = p3m;
+        if (p1y)  ETF_DATA[ticker].one_y_start   = p1y;
       }
     });
 
