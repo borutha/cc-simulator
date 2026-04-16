@@ -281,25 +281,35 @@ async function fetchLive(ticker) {
       const timestamps = result2.timestamp || [];
       const closes = result2.indicators?.quote?.[0]?.close || [];
       if (timestamps.length > 0 && closes.length > 0) {
-        const now = Date.now() / 1000;
-        const jan1 = new Date(new Date().getFullYear(), 0, 1).getTime() / 1000;
-        const ago6m = now - 182 * 86400;
-        const ago3m = now - 91 * 86400;
-        const ago1y = now - 365 * 86400;
+        // Build array of {date (YYYY-MM-DD), close} sorted oldest→newest
+        const pts = timestamps
+          .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 7), close: closes[i] }))
+          .filter(p => p.close != null);
 
-        // For each period, find the closest closing price just before that date
-        const priceAt = (cutoff) => {
+        const thisYear = new Date().getFullYear();
+        const nowMs    = Date.now();
+
+        // Find the data point whose month-start is closest to (but not after) a target date
+        const priceAtDate = (targetMs) => {
           let best = null;
-          for (let i = 0; i < timestamps.length; i++) {
-            if (timestamps[i] <= cutoff && closes[i] != null) best = closes[i];
+          for (const p of pts) {
+            const pMs = new Date(p.date + '-01').getTime();
+            if (pMs <= targetMs) best = p.close;
           }
           return best;
         };
 
-        const ytd   = priceAt(jan1)  || priceAt(jan1  + 10 * 86400);
-        const p6m   = priceAt(ago6m) || priceAt(ago6m + 10 * 86400);
-        const p3m   = priceAt(ago3m) || priceAt(ago3m + 10 * 86400);
-        const p1y   = priceAt(ago1y) || priceAt(ago1y + 10 * 86400);
+        // YTD: use Dec of previous year (= last closing price before Jan 1)
+        // Monthly candles are month-opens, so Dec close ≈ Jan open of next month
+        // Best we can do: use the last data point before thisYear
+        const prevYear = thisYear - 1;
+        // Find the last monthly close from previous year (Dec entry preferred)
+        const ytdPt = pts.slice().reverse().find(p => p.date.startsWith(`${prevYear}`));
+        const ytd = ytdPt?.close ?? priceAtDate(new Date(thisYear, 0, 1).getTime());
+
+        const p6m = priceAtDate(nowMs - 182 * 86400000);
+        const p3m = priceAtDate(nowMs - 91  * 86400000);
+        const p1y = priceAtDate(nowMs - 365 * 86400000);
 
         if (ytd)  ETF_DATA[ticker].ytd_start     = ytd;
         if (p6m)  ETF_DATA[ticker].six_m_start   = p6m;
