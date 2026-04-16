@@ -388,8 +388,19 @@ const QUICK_SUGGESTIONS = [
   { ticker:'VGT',  name:'Vanguard Information Technology ETF' },
   { ticker:'VTV',  name:'Vanguard Value ETF' },
   { ticker:'SCHG', name:'Schwab U.S. Large-Cap Growth ETF' },
+  { ticker:'SCHD', name:'Schwab U.S. Dividend Equity ETF' },
+  { ticker:'SCHB', name:'Schwab U.S. Broad Market ETF' },
+  { ticker:'SCHX', name:'Schwab U.S. Large-Cap ETF' },
+  { ticker:'SCHA', name:'Schwab U.S. Small-Cap ETF' },
+  { ticker:'SCHF', name:'Schwab International Equity ETF' },
+  { ticker:'VNQ',  name:'Vanguard Real Estate ETF' },
+  { ticker:'VWO',  name:'Vanguard FTSE Emerging Markets ETF' },
+  { ticker:'BND',  name:'Vanguard Total Bond Market ETF' },
   { ticker:'VXUS', name:'Vanguard Total International Stock ETF' },
   { ticker:'AGG',  name:'iShares Core U.S. Aggregate Bond ETF' },
+  { ticker:'TLT',  name:'iShares 20+ Year Treasury Bond ETF' },
+  { ticker:'GLD',  name:'SPDR Gold Shares' },
+  { ticker:'IAU',  name:'iShares Gold Trust' },
   { ticker:'TSLY', name:'YieldMax TSLA Option Income Strategy ETF' },
   { ticker:'NVDY', name:'YieldMax NVDA Option Income Strategy ETF' },
   { ticker:'CONY', name:'YieldMax COIN Option Income Strategy ETF' },
@@ -439,32 +450,40 @@ document.getElementById('etfSearch').addEventListener('input', function() {
 
   // If query looks like a ticker not in the suggestions list, do a live lookup
   if (looksLikeTicker && !exactInList) {
-    // Show "searching..." placeholder if no local matches either
-    if (localMatches.length === 0) {
-      dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">🔍 Looking up <strong>${q}</strong> on Yahoo Finance…</div>`;
-      dd.style.display = 'block';
-    }
-
-    // Debounce the live lookup by 600ms so we don't fire on every keystroke
-    searchDebounceTimer = setTimeout(() => {
+    const showLiveResult = () => {
       if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
-      _fetchLiveCached(q).then(result => {
+      const data = ETF_DATA[q];
+      if (data && ETF_SOURCE[q] === 'live') {
+        const liveItem = { ticker: q, name: data.name || q, source: 'live', yield_annual: data.yield_annual };
+        renderDropdown([liveItem, ...buildItems().filter(i => i.ticker !== q)].slice(0, 8));
+      } else if (localMatches.length === 0) {
+        dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">No results for "<strong>${q}</strong>". Check the ticker symbol.</div>`;
+        dd.style.display = 'block';
+      }
+    };
+
+    // If already fetched, show immediately — no debounce needed
+    if (ETF_SOURCE[q] === 'live') {
+      showLiveResult();
+    } else {
+      // Show "searching..." placeholder if no local matches
+      if (localMatches.length === 0) {
+        dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">🔍 Looking up <strong>${q}</strong> on Yahoo Finance…</div>`;
+        dd.style.display = 'block';
+      }
+      // Debounce the live fetch by 600ms so we don't fire on every keystroke
+      searchDebounceTimer = setTimeout(() => {
         if (document.getElementById('etfSearch').value.trim().toUpperCase() !== q) return;
-        if (result) {
-          // Found it — show as top result, then local partial matches below
-          const liveItem = {
-            ticker: q,
-            name:   ETF_DATA[q]?.name || q,
-            source: 'live',
-            yield_annual: ETF_DATA[q]?.yield_annual
-          };
-          renderDropdown([liveItem, ...buildItems().filter(i => i.ticker !== q)].slice(0, 8));
-        } else if (localMatches.length === 0) {
-          dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">No results for "<strong>${q}</strong>". Check the ticker symbol.</div>`;
-          dd.style.display = 'block';
-        }
-      });
-    }, 600);
+        _fetchLiveCached(q).then(result => {
+          if (!result && localMatches.length === 0) {
+            dd.innerHTML = `<div style="padding:12px 14px;color:#718096;font-size:13px;">No results for "<strong>${q}</strong>". Check the ticker symbol.</div>`;
+            dd.style.display = 'block';
+          } else {
+            showLiveResult();
+          }
+        });
+      }, 600);
+    }
   }
 });
 
